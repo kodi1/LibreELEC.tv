@@ -245,12 +245,15 @@ if [ -f "$INSTALL_SRC_DIR/aml_autoscript.src" ]; then
   mcopy "$OE_TMP/aml_autoscript" "::/aml_autoscript"
 fi
 
+if [ -f "$INSTALL_SRC_DIR/s805_autoscript.src" ]; then
+  $MKIMAGE_TOOL_CMD "$INSTALL_SRC_DIR/s805_autoscript.src" "$OE_TMP/s805_autoscript"
+  mcopy "$OE_TMP/s805_autoscript" "::/s805_autoscript"
+fi
 
 if [ -f "$INSTALL_SRC_DIR/s905_autoscript.src" ]; then
   $MKIMAGE_TOOL_CMD "$INSTALL_SRC_DIR/s905_autoscript.src" "$OE_TMP/s905_autoscript"
   mcopy "$OE_TMP/s905_autoscript" "::/s905_autoscript"
 fi
-
 
 # extract part2 from image to format and copy files
   echo "image: extracting part2 from image..."
@@ -280,8 +283,8 @@ fi
   dd if="$OE_TMP/part2.ext4" of="$DISK" bs=512 seek="$STORAGE_PART_START" conv=fsync,notrunc >"$SAVE_ERROR" 2>&1 || show_error
 
 # gzip
-  echo "image: compressing..."
-  gzip $DISK
+#  echo "image: compressing..."
+#  gzip $DISK
 
 # set owner
   if [ -n "$SUDO_USER" ] ; then
