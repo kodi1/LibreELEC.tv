@@ -6,6 +6,9 @@
     S805)
       LIBREELEC_VERSION="7.0.2.4"
       ;;
+    S812)
+      LIBREELEC_VERSION="7.0.2.4"
+      ;;
     S905)
       LIBREELEC_VERSION="7.0.2.004"
       ;;
