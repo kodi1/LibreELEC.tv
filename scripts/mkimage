@@ -62,7 +62,7 @@ trap cleanup SIGINT
   FAT_VOL_ID="${UUID_1}${UUID_2}"
   UUID_SYSTEM="${UUID_1}-${UUID_2}"
   LABEL_part1="BOOT"
-  LABEL_part2="STORAGE"
+  LABEL_part2="DISK"
 
 # create an image
   echo
