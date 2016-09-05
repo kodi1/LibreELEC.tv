@@ -21,21 +21,37 @@ hdmimode="720p"
 
 # Parse command line arguments
 for arg in $(cat /proc/cmdline); do
-  case $arg in
+  case ${arg} in
     hdmimode=*)
-      hdmimode="${arg#*=}"
+      hdmimode=${arg#*=}
       ;;
     scaling_governor=*)
-      scaling_governor="${arg#*=}"
+      scaling_governor=${arg#*=}
       ;;
     scaling_min_freq=*)
-      scaling_min_freq="${arg#*=}"
+      scaling_min_freq=${arg#*=}
       ;;
     scaling_max_freq=*)
-      scaling_max_freq="${arg#*=}"
+      scaling_max_freq=${arg#*=}
+      ;;
+    BOOT_IMAGE=*)
+      BOOT_IMAGE=${arg#*=}
+      ;;
+    boot=*)
+      boot=${arg#*=}
+      ;;
+    disk=*)
+      disk=${arg#*=}
       ;;
   esac
 done
+
+# Add information where to run LibreELEC from
+if [ -z "$BOOT_IMAGE" -o -z "$boot" -o -z "$disk" ]; then
+  cmdline=$(cat /proc/cmdline)
+  cmdline="$cmdline BOOT_IMAGE=/dev/boot boot=/dev/system disk=/dev/data"
+  echo "$cmdline" > /proc/cmdline
+fi
 
 echo "$hdmimode" > /sys/class/display/mode
 
