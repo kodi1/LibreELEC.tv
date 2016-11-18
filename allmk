@@ -1,0 +1,5 @@
+# polipo
+
+PROJECT=S812 ARCH=arm DEVICE=X8HP CONCURRENCY_MAKE_LEVEL=6 time make -j amlpkg
+
+#scp -r target/*.tar efi:/mnt
