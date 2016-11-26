@@ -1,0 +1,25 @@
+# libreele
+
+language: c
+
+os: linux
+dist: trusty
+sudo: required
+compiler:
+  - gcc
+  - clang
+
+install: sudo apt install gcc make
+
+script: . allmk
+
+#after_failure:
+#  - COREFILE=$(find . -maxdepth 1 -name "core*" | head -n 1)
+#  - if [[ -f "$COREFILE" ]]; then
+#      gdb -c "$COREFILE" kodi-test -ex "thread apply all bt" -ex "set pagination 0" -batch;
+#    fi
+
+# Disable annoying emails
+
+notifications:
+  email: false
