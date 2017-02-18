@@ -1,0 +1,155 @@
+From d7d73dd79411f5296d1511307b335ae79d32ef58 Mon Sep 17 00:00:00 2001
+From: jonudewux <jonudewux@stromox.com>
+Date: Sat, 18 Feb 2017 16:38:07 +0200
+Subject: [PATCH 1/3] Workaround Slow Htps on LAN
+
+---
+ pvr.hts/resources/language/resource.language.en_gb/strings.po |  4 ++++
+ pvr.hts/resources/settings.xml                                |  1 +
+ src/Tvheadend.cpp                                             | 11 ++++++++++-
+ src/tvheadend/Settings.cpp                                    |  7 +++++++
+ src/tvheadend/Settings.h                                      |  7 ++++++-
+ 5 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/pvr.hts/resources/language/resource.language.en_gb/strings.po b/pvr.hts/resources/language/resource.language.en_gb/strings.po
+index 46a2b3f..cd052fb 100644
+--- a/pvr.hts/resources/language/resource.language.en_gb/strings.po
++++ b/pvr.hts/resources/language/resource.language.en_gb/strings.po
+@@ -120,6 +120,10 @@ msgctxt "#30201"
+ msgid "Trace (detailed)"
+ msgstr ""
+ 
++msgctxt "#30202"
++msgid "Use HTTP for recording"
++msgstr ""
++
+ #empty strings from id 30202 to 30299
+ 
+ msgctxt "#30300"
+diff --git a/pvr.hts/resources/settings.xml b/pvr.hts/resources/settings.xml
+index a680619..aa05ad2 100644
+--- a/pvr.hts/resources/settings.xml
++++ b/pvr.hts/resources/settings.xml
+@@ -37,5 +37,6 @@
+     
+     <setting label="30200" type="lsep"/>
+     <setting id="trace_debug" type="bool" label="30201" default="false"/>
++    <setting id="http_rec" type="bool" label="30202" default="false"/>
+   </category>
+ </settings>
+diff --git a/src/Tvheadend.cpp b/src/Tvheadend.cpp
+index 2057241..a40a8a3 100644
+--- a/src/Tvheadend.cpp
++++ b/src/Tvheadend.cpp
+@@ -411,13 +411,17 @@ PVR_ERROR CTvheadend::GetRecordings ( ADDON_HANDLE handle )
+ {
+   if (!m_asyncState.WaitForState(ASYNC_EPG))
+     return PVR_ERROR_FAILED;
+-  
++
+   std::vector<PVR_RECORDING> recs;
+   {
+     CLockObject lock(m_mutex);
+     Channels::const_iterator cit;
+     char buf[128];
+ 
++    bool _http = Settings::GetInstance().GetHttPlayRec();
++    int port = Settings::GetInstance().GetPortHTTP();
++    std::string host = Settings::GetInstance().GetHostname();
++
+     for (const auto &entry : m_recordings)
+     {
+       const auto &recording = entry.second;
+@@ -478,6 +482,11 @@ PVR_ERROR CTvheadend::GetRecordings ( ADDON_HANDLE handle )
+         }
+       }
+ 
++      /* Fill recording url */
++      if (_http) {
++        snprintf(rec.strStreamURL, sizeof(rec.strStreamURL), "http://%s:%d/dvrfile/%s",host.c_str(), port, rec.strRecordingId);
++      }
++
+       /* EPG event id */
+       rec.iEpgEventId = recording.GetEventId();
+ 
+diff --git a/src/tvheadend/Settings.cpp b/src/tvheadend/Settings.cpp
+index 34786fc..6c8fb1a 100644
+--- a/src/tvheadend/Settings.cpp
++++ b/src/tvheadend/Settings.cpp
+@@ -44,6 +44,7 @@ const std::string Settings::DEFAULT_STREAMING_PROFILE   = "";
+ const int         Settings::DEFAULT_DVR_PRIO            = DVR_PRIO_NORMAL;
+ const int         Settings::DEFAULT_DVR_LIFETIME        = 8; // enum 8 = 3 months
+ const int         Settings::DEFAULT_DVR_DUBDETECT       = DVR_AUTOREC_RECORD_ALL;
++const bool        Settings::DEFAULT_HTTP_REC            = false;
+ 
+ void Settings::ReadSettings()
+ {
+@@ -61,6 +62,9 @@ void Settings::ReadSettings()
+   /* Debug */
+   SetTraceDebug(ReadBoolSetting("trace_debug", DEFAULT_TRACE_DEBUG));
+ 
++  /* Rec mode */
++  SetHttPlayRec(ReadBoolSetting("http_rec", DEFAULT_HTTP_REC));
++
+   /* Data Transfer */
+   SetAsyncEpg(ReadBoolSetting("epg_async", DEFAULT_ASYNC_EPG));
+ 
+@@ -112,6 +116,9 @@ ADDON_STATUS Settings::SetSetting(const std::string &key, const void *value)
+   /* Debug */
+   else if (key == "trace_debug")
+     return SetBoolSetting(GetTraceDebug(), value);
++  /* http rec */
++  else if (key == "http_rec")
++    return SetBoolSetting(GetHttPlayRec(), value);
+   /* Data Transfer */
+   else if (key == "epg_async")
+     return SetBoolSetting(GetAsyncEpg(), value);
+diff --git a/src/tvheadend/Settings.h b/src/tvheadend/Settings.h
+index c6f50d9..3aba14e 100644
+--- a/src/tvheadend/Settings.h
++++ b/src/tvheadend/Settings.h
+@@ -53,6 +53,7 @@ namespace tvheadend {
+     static const int         DEFAULT_DVR_PRIO;        // 0..4  (0 = max, 4 = min)
+     static const int         DEFAULT_DVR_LIFETIME;    // 0..14 (0 = 1 day, 14 = forever)
+     static const int         DEFAULT_DVR_DUBDETECT;   // 0..5  (0 = record all, 5 = limit to once a day)
++    static const bool        DEFAULT_HTTP_REC;
+ 
+     /**
+      * Singleton getter for the instance
+@@ -94,6 +95,7 @@ namespace tvheadend {
+     int         GetDvrPriority() const { return m_iDvrPriority; }
+     int         GetDvrDupdetect() const { return m_iDvrDupdetect; }
+     int         GetDvrLifetime(bool asEnum = false) const;
++    bool        GetHttPlayRec() const { return m_bUseHttpRec; }
+ 
+   private:
+     Settings()
+@@ -114,7 +116,8 @@ namespace tvheadend {
+       m_strStreamingProfile(DEFAULT_STREAMING_PROFILE),
+       m_iDvrPriority(DEFAULT_DVR_PRIO),
+       m_iDvrLifetime(DEFAULT_DVR_LIFETIME),
+-      m_iDvrDupdetect(DEFAULT_DVR_DUBDETECT) {}
++      m_iDvrDupdetect(DEFAULT_DVR_DUBDETECT),
++      m_bUseHttpRec(DEFAULT_HTTP_REC) {}
+ 
+     Settings(Settings const &) = delete;
+     void operator=(Settings const &) = delete;
+@@ -139,6 +142,7 @@ namespace tvheadend {
+     void SetDvrPriority(int value) { m_iDvrPriority = value; }
+     void SetDvrLifetime(int value) { m_iDvrLifetime = value; }
+     void SetDvrDupdetect(int value) { m_iDvrDupdetect = value; }
++    void SetHttPlayRec(bool value) { m_bUseHttpRec = value; }
+ 
+     /**
+      * Read/Set values according to definition in settings.xml
+@@ -170,6 +174,7 @@ namespace tvheadend {
+     int         m_iDvrPriority;
+     int         m_iDvrLifetime;
+     int         m_iDvrDupdetect;
++    bool        m_bUseHttpRec;
+   };
+ 
+ }
+-- 
+1.9.1
+
