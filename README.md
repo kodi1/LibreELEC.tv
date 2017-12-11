@@ -1,6 +1,6 @@
 # To Build
 
-DISTRO=LibreELEC PROJECT=S812 DEVICE=X8-H_Series ARCH=arm make -j5 image
+eg : DISTRO=LibreELEC PROJECT=S812 DEVICE=X8-H_Series ARCH=arm make -j5 image
 
 -j5 = 5 processes
 
