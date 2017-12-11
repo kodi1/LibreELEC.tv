@@ -17,7 +17,7 @@
 ################################################################################
 
 PKG_NAME="audioencoder.vorbis"
-PKG_VERSION="8c928ed"
+PKG_VERSION="65f9538"
 PKG_REV="1"
 PKG_ARCH="any"
 PKG_LICENSE="GPL"

@@ -8,7 +8,8 @@ X8HPlusGen1 :
 *X8Hplus.dtb from axesofevil
 *xpad + initramfs(echo 1 > /sys/module/bluetooth/parameters/disable_ertm)
 
-
+sept : fix SD boot on x8h-p gen1
+october : kodi17.6rc1 + patches, lakka test
 
 --------------------------------------------------------------------------------------------------------------------------------------------
 

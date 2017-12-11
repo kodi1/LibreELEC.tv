@@ -17,7 +17,7 @@
 ################################################################################
 
 PKG_NAME="screensaver.pingpong"
-PKG_VERSION="f162213"
+PKG_VERSION="3a27396"
 PKG_REV="1"
 PKG_ARCH="any"
 PKG_LICENSE="GPL"

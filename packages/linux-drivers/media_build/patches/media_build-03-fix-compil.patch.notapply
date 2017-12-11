@@ -1,0 +1,11 @@
+--- drivers/media/rc/lirc_dev.c
++++ drivers/media/rc/lirc_dev.c
+@@ -18,7 +18,7 @@ 
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ 
+ #include <linux/module.h>
+-#include <linux/sched/signal.h>
++#include <linux/sched.h>
+ #include <linux/ioctl.h>
+ #include <linux/poll.h>
+ #include <linux/mutex.h>

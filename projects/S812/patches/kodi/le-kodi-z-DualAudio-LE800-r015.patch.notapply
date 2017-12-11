@@ -1,0 +1,4618 @@
+From 3e8be8e9e2800e08614699a378ac82efdb941d67 Mon Sep 17 00:00:00 2001
+From: xhbl <newxhbl@hotmail.com>
+Date: Sat, 11 Mar 2017 12:23:46 +0800
+Subject: [PATCH] [DualAudio] Krypton 2nd Audio Output supported
+
+---
+ README.md                                          |  22 ++
+ system/settings/darwin.xml                         |  16 +
+ system/settings/darwin_ios.xml                     |  14 +
+ system/settings/rbp.xml                            |  14 +
+ system/settings/rbp2.xml                           |  11 +
+ system/settings/settings.xml                       | 325 ++++++++++++++++++
+ system/settings/win32.xml                          |  30 ++
+ version.txt                                        |   2 +-
+ xbmc/Application.cpp                               |  34 +-
+ xbmc/cores/AudioEngine/AEFactory.cpp               | 225 +++++++++---
+ xbmc/cores/AudioEngine/AEFactory.h                 |  28 +-
+ xbmc/cores/AudioEngine/AESinkFactory.cpp           |   3 +
+ .../cores/AudioEngine/Encoders/AEEncoderFFmpeg.cpp |   2 +-
+ .../AudioEngine/Engines/ActiveAE/ActiveAE.cpp      | 278 +++++++++++++--
+ xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAE.h |  13 +
+ .../Engines/ActiveAE/ActiveAEBuffer.cpp            |  11 +-
+ .../AudioEngine/Engines/ActiveAE/ActiveAEBuffer.h  |   8 +-
+ .../AudioEngine/Engines/ActiveAE/ActiveAESink.cpp  |  22 +-
+ .../AudioEngine/Engines/ActiveAE/ActiveAESink.h    |   3 +
+ .../AudioEngine/Engines/ActiveAE/ActiveAESound.cpp |   4 +-
+ .../Engines/ActiveAE/ActiveAEStream.cpp            |   4 +-
+ xbmc/cores/AudioEngine/Interfaces/AE.h             |  13 +-
+ xbmc/cores/AudioEngine/Interfaces/AEEncoder.h      |   7 +-
+ xbmc/cores/AudioEngine/Interfaces/AESound.h        |   6 +-
+ xbmc/cores/AudioEngine/Interfaces/AEStream.h       |   7 +-
+ xbmc/cores/DataCacheCore.cpp                       |  76 ++++-
+ xbmc/cores/DataCacheCore.h                         |  20 +-
+ xbmc/cores/VideoPlayer/DVDAudio.cpp                |   6 +-
+ xbmc/cores/VideoPlayer/DVDAudio.h                  |   4 +-
+ .../VideoPlayer/DVDCodecs/Audio/DVDAudioCodec.h    |   7 +-
+ .../DVDCodecs/Audio/DVDAudioCodecFFmpeg.cpp        |   2 +-
+ .../DVDCodecs/Audio/DVDAudioCodecPassthrough.cpp   |  14 +-
+ .../VideoPlayer/DVDCodecs/DVDFactoryCodec.cpp      |   9 +-
+ xbmc/cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.h |   4 +-
+ xbmc/cores/VideoPlayer/Process/ProcessInfo.cpp     |  99 +++++-
+ xbmc/cores/VideoPlayer/Process/ProcessInfo.h       |  22 +-
+ xbmc/cores/VideoPlayer/VideoPlayerAudio.cpp        | 304 ++++++++++++++++-
+ xbmc/cores/VideoPlayer/VideoPlayerAudio.h          |  35 +-
+ xbmc/cores/paplayer/AudioDecoder.cpp               |   8 +
+ xbmc/cores/paplayer/AudioDecoder.h                 |   6 +
+ xbmc/cores/paplayer/ICodec.h                       |  13 +
+ xbmc/cores/paplayer/PAPlayer.cpp                   | 378 ++++++++++++++++++++-
+ xbmc/cores/paplayer/PAPlayer.h                     |  14 +
+ xbmc/cores/paplayer/VideoPlayerCodec.cpp           |  14 +-
+ xbmc/guilib/GUIAudioManager.cpp                    | 101 ++++--
+ xbmc/guilib/GUIAudioManager.h                      |  20 +-
+ xbmc/settings/SettingConditions.cpp                |   1 +
+ xbmc/settings/Settings.cpp                         |  52 +++
+ xbmc/settings/Settings.h                           |  24 ++
+ 49 files changed, 2122 insertions(+), 213 deletions(-)
+
+diff --git a/README.md b/README.md
+index c460729..defd7c0 100644
+--- a/README.md
++++ b/README.md
+@@ -4,6 +4,28 @@
+ ![Kodi logo](https://raw.githubusercontent.com/xbmc/xbmc-forum/master/xbmc/images/logo-sbs-black.png)
+ # Kodi Home Theater Software
+ 
++## About
++
++Kodi Dual Audio provide two simultaneous audio output for built-in audio and
++video player as well as GUI sound. Two output can be configured independently
++through GUI settings.
++
++Previously the feature was developed in Dharma and Eden and distributed as
++a patch in Kodi forum. As the new Audio subsystem known as AudioEngine was
++introduced since Frodo to replace the old Audio Renderer, the old patch was
++not applicable. This project is to develop a new dual audio support for Kodi
++Frodo and future version which is adapted to the AudioEngine.
++
++For discussion and downloading, please refer to the thread:
++http://forum.kodi.tv/showthread.php?tid=192480
++
++For old dual audio patch, please refer to the thread:
++http://forum.kodi.tv/showthread.php?tid=86038
++
++Any feedback or support for this project, please send email to:
++newxhbl@hotmail.com
++
++
+ **Welcome to Kodi!**
+ 
+ Kodi is an award-winning free and open source (GPL) software media player and
+diff --git a/system/settings/darwin.xml b/system/settings/darwin.xml
+index ea70c1a..1d1fe4b 100644
+--- a/system/settings/darwin.xml
++++ b/system/settings/darwin.xml
+@@ -22,6 +22,22 @@
+         </setting>
+       </group>
+     </category>
++    <category id="audio2">
++      <group id="1">
++        <setting id="audiooutput2.channels" help="36367" />
++      </group>
++      <group id="3">
++        <setting id="audiooutput2.eac3passthrough">
++          <visible>false</visible>
++        </setting>
++        <setting id="audiooutput2.truehdpassthrough">
++          <visible>false</visible>
++        </setting>
++        <setting id="audiooutput2.dtshdpassthrough">
++          <visible>false</visible>
++        </setting>
++      </group>
++    </category>
+     <category id="input">
+       <group id="2">
+         <setting id="input.appleremotemode" type="integer" label="13600" help="36416">
+diff --git a/system/settings/darwin_ios.xml b/system/settings/darwin_ios.xml
+index 0b561c3..2b01548 100644
+--- a/system/settings/darwin_ios.xml
++++ b/system/settings/darwin_ios.xml
+@@ -47,6 +47,20 @@
+         </setting>
+       </group>
+     </category>
++    <category id="audio2">
++      <group id="1">
++        <setting id="audiooutput2.audiodevice" type="string">
++          <default>Default</default>
++          <visible>false</visible>
++        </setting>
++      </group>
++      <group id="3">
++        <setting id="audiooutput2.passthroughdevice" type="string">
++          <default>Default</default>
++          <visible>false</visible>
++        </setting>
++      </group>
++    </category>
+     <category id="input">
+       <group id="1">
+         <setting id="input.peripherals">
+diff --git a/system/settings/rbp.xml b/system/settings/rbp.xml
+index 62e9c8e..03873dd 100644
+--- a/system/settings/rbp.xml
++++ b/system/settings/rbp.xml
+@@ -101,5 +101,19 @@
+         </setting>
+       </group>
+     </category>
++    <category id="audio2">
++      <group id="1">
++        <setting id="audiooutput2.processquality">
++          <default>101</default> <!-- AE_QUALITY_GPU -->
++        </setting>
++        <setting id="audiooutput2.atempothreshold">
++          <default>100</default> <!-- disabled -->
++        </setting>
++      </group>
++      <group id="3">
++        <setting id="audiooutput2.ac3transcode" help="37024">
++        </setting>
++      </group>
++    </category>
+   </section>
+ </settings>
+diff --git a/system/settings/rbp2.xml b/system/settings/rbp2.xml
+index 50bd55e..67a2211 100644
+--- a/system/settings/rbp2.xml
++++ b/system/settings/rbp2.xml
+@@ -28,5 +28,16 @@
+         </setting>
+       </group>
+     </category>
++    <category id="audio2">
++      <group id="1">
++        <setting id="audiooutput2.atempothreshold">
++          <default>2</default> <!-- 2% -->
++        </setting>
++      </group>
++      <group id="3">
++        <setting id="audiooutput2.ac3transcode" help="36429">
++        </setting>
++      </group>
++    </category>
+   </section>
+ </settings>
+diff --git a/system/settings/settings.xml b/system/settings/settings.xml
+index f28f5da..a47b27e 100644
+--- a/system/settings/settings.xml
++++ b/system/settings/settings.xml
+@@ -2595,6 +2595,331 @@
+         </setting>
+       </group>
+     </category>
++    <category id="audio2" label="14221" help="36360">
++      <group id="0">
++        <setting id="audiooutput2.enabled" type="boolean" label="37017" help="37017">
++          <level>0</level>
++          <default>false</default>
++          <control type="toggle" />
++        </setting>
++      </group>
++      <group id="1" label="14250">
++        <setting id="audiooutput2.audiodevice" type="string" label="545" help="36371">
++          <level>0</level>
++          <default>Default</default> <!-- will be properly set on startup -->
++          <dependencies>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <constraints>
++            <options>audiodevices</options>
++          </constraints>
++          <control type="list" format="string" />
++          <updates>
++            <update type="change" />
++          </updates>
++        </setting>
++        <setting id="audiooutput2.channels" type="integer" label="34100" help="36362">
++          <level>0</level>
++          <default>1</default> <!-- AE_CH_LAYOUT_2_0 -->
++          <dependencies>
++            <dependency type="visible" on="property" name="aesettingvisible2" setting="audiooutput2.audiodevice">audiooutput2.channels</dependency>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <constraints>
++            <options>
++              <option label="34101">1</option> <!-- AE_CH_LAYOUT_2_0 -->
++              <option label="34102">2</option> <!-- AE_CH_LAYOUT_2_1 -->
++              <option label="34103">3</option> <!-- AE_CH_LAYOUT_3_0 -->
++              <option label="34104">4</option> <!-- AE_CH_LAYOUT_3_1 -->
++              <option label="34105">5</option> <!-- AE_CH_LAYOUT_4_0 -->
++              <option label="34106">6</option> <!-- AE_CH_LAYOUT_4_1 -->
++              <option label="34107">7</option> <!-- AE_CH_LAYOUT_5_0 -->
++              <option label="34108">8</option> <!-- AE_CH_LAYOUT_5_1 -->
++              <option label="34109">9</option> <!-- AE_CH_LAYOUT_7_0 -->
++              <option label="34110">10</option> <!-- AE_CH_LAYOUT_7_1 -->
++            </options>
++          </constraints>
++          <control type="list" format="string" />
++        </setting>
++        <setting id="audiooutput2.config" type="integer" label="337" help="36361">
++          <level>2</level>
++          <default>2</default>
++          <dependencies>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <constraints>
++            <options>
++              <option label="338">1</option>
++              <option label="339">2</option>
++              <option label="420">3</option>
++            </options>
++          </constraints>
++          <control type="list" format="integer" />
++        </setting>
++        <setting id="audiooutput2.volumesteps" type="integer" label="1302" help="36442">
++          <level>1</level>
++          <default>90</default>
++          <dependencies>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <constraints>
++            <minimum>10</minimum>
++            <step>5</step>
++            <maximum>90</maximum>
++          </constraints>
++          <control type="list" format="integer" />
++        </setting>
++        <setting id="audiooutput2.maintainoriginalvolume" type="boolean" label="346" help="36533">
++          <level>2</level>
++          <default>true</default>
++          <dependencies>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <control type="toggle" />
++        </setting>
++        <setting id="audiooutput2.stereoupmix" type="boolean" label="252" help="36364">
++          <level>2</level>
++          <default>false</default>
++          <dependencies>
++            <dependency type="visible" on="property" name="aesettingvisible2" setting="audiooutput2.channels">audiooutput2.stereoupmix</dependency>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <control type="toggle" />
++        </setting>
++        <setting id="audiooutput2.processquality" type="integer" label="13505" help="36169">
++          <requirement>HAS_AE_QUALITY_LEVELS</requirement>
++          <level>2</level>
++          <default>30</default> <!-- AE_QUALITY_MID -->
++          <dependencies>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <constraints>
++            <options>aequalitylevels</options>
++          </constraints>
++          <control type="list" format="string" />
++        </setting>
++        <setting id="audiooutput2.atempothreshold" type="integer" label="13517" help="13518">
++          <level>3</level>
++          <default>2</default> <!-- 2% -->
++          <dependencies>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <constraints>
++            <minimum>0</minimum>
++            <step>1</step>
++            <maximum>100</maximum>
++          </constraints>
++          <control type="edit" format="integer" />
++        </setting>
++        <setting id="audiooutput2.samplerate" type="integer" label="458" help="36523">
++          <level>2</level>
++          <default>48000</default>
++          <dependencies>
++            <dependency type="visible">
++              <and>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.audiodevice">audiooutput2.samplerate</condition>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.config">audiooutput2.samplerate</condition>
++              </and>
++            </dependency>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <constraints>
++            <options>
++              <option label="34124">44100</option>
++              <option label="34125">48000</option>
++              <option label="34126">88200</option>
++              <option label="34127">96000</option>
++              <option label="34128">192000</option>
++            </options>
++          </constraints>
++          <control type="list" format="integer" />
++        </setting>
++        <setting id="audiooutput2.streamsilence" type="integer" label="421" help="34111">
++          <level>2</level>
++          <default>1</default>
++          <dependencies>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <constraints>
++            <options>audiostreamsilence2</options>
++          </constraints>
++          <control type="list" format="string" />
++        </setting>
++        <setting id="audiooutput2.streamnoise" type="boolean" label="34112" help="34113">
++          <level>2</level>
++          <default>true</default>
++          <dependencies>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <control type="toggle" />
++        </setting>
++      </group>
++      <group id="2" label="15108">
++        <setting id="audiooutput2.guisoundmode" type="integer" label="34120" help="36373">
++          <level>0</level>
++          <default>1</default> <!-- AE_SOUND_IDLE -->
++          <dependencies>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <constraints>
++            <options>
++              <option label="34121">1</option> <!-- AE_SOUND_IDLE -->
++              <option label="34122">2</option> <!-- AE_SOUND_ALWAYS -->
++              <option label="34123">0</option> <!-- AE_SOUND_OFF -->
++            </options>
++          </constraints>
++          <control type="list" format="string" />
++        </setting>
++      </group>
++      <group id="3" label="14252">
++        <setting id="audiooutput2.passthrough" type="boolean" label="348" help="36368">
++          <level>1</level>
++          <default>false</default>
++          <dependencies>
++            <dependency type="visible">
++              <and>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.audiodevice">audiooutput2.passthrough</condition>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.config">audiooutput2.passthrough</condition>
++              </and>
++            </dependency>
++            <dependency type="enable" setting="audiooutput2.enabled" operator="is">true</dependency>
++          </dependencies>
++          <control type="toggle" />
++        </setting>
++        <setting id="audiooutput2.passthroughdevice" type="string" label="546" help="36372">
++          <level>1</level>
++          <default>Default</default> <!-- will be properly set on startup -->
++          <dependencies>
++            <dependency type="visible">
++              <and>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.passthrough">audiooutput2.passthrough</condition>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.config">audiooutput2.passthrough</condition>
++              </and>
++            </dependency>
++            <dependency type="enable">
++              <and>
++                <condition setting="audiooutput2.enabled" operator="is">true</condition>
++                <condition setting="audiooutput2.passthrough" operator="is">true</condition>
++              </and>
++            </dependency>
++          </dependencies>
++          <constraints>
++            <options>audiodevicespassthrough</options>
++          </constraints>
++          <control type="list" format="string" />
++        </setting>
++        <setting id="audiooutput2.ac3passthrough" type="boolean" label="364" help="36365">
++          <level>2</level>
++          <default>true</default>
++          <dependencies>
++            <dependency type="visible" on="property" name="aesettingvisible2" setting="audiooutput2.config">audiooutput2.passthrough</dependency>
++            <dependency type="enable">
++              <and>
++                <condition setting="audiooutput2.enabled" operator="is">true</condition>
++                <condition setting="audiooutput2.passthrough" operator="is">true</condition>
++              </and>
++            </dependency>
++          </dependencies>
++          <control type="toggle" />
++        </setting>
++        <setting id="audiooutput2.ac3transcode" type="boolean" parent="audiooutput2.ac3passthrough" label="667" help="36429">
++          <level>2</level>
++          <default>false</default>
++          <dependencies>
++            <dependency type="enable">
++              <and>
++                <condition setting="audiooutput2.enabled" operator="is">true</condition>
++                <condition setting="audiooutput2.passthrough" operator="is">true</condition>
++                <condition setting="audiooutput2.ac3passthrough" operator="is">true</condition>
++              </and>
++            </dependency>
++            <dependency type="visible">
++              <and>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.config">audiooutput2.ac3transcode</condition>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.channels">audiooutput2.ac3transcode</condition>
++              </and>
++            </dependency>
++          </dependencies>
++          <control type="toggle" />
++        </setting>
++        <setting id="audiooutput2.eac3passthrough" type="boolean" label="448" help="37016">
++          <level>2</level>
++          <default>false</default>
++          <dependencies>
++            <dependency type="visible">
++              <and>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput.config">audiooutput.eac3passthrough</condition>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput.passthroughdevice">audiooutput.eac3passthrough</condition>
++              </and>
++            </dependency>
++            <dependency type="enable">
++              <and>
++                <condition setting="audiooutput2.enabled" operator="is">true</condition>
++                <condition setting="audiooutput2.passthrough" operator="is">true</condition>
++              </and>
++            </dependency>
++          </dependencies>
++          <control type="toggle" />
++        </setting>
++        <setting id="audiooutput2.dtspassthrough" type="boolean" label="254" help="36366">
++          <level>2</level>
++          <default>false</default>
++          <dependencies>
++            <dependency type="visible">
++              <and>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.config">audiooutput2.dtspassthrough</condition>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.passthroughdevice">audiooutput2.dtspassthrough</condition>
++              </and>
++            </dependency>
++            <dependency type="enable">
++              <and>
++                <condition setting="audiooutput2.enabled" operator="is">true</condition>
++                <condition setting="audiooutput2.passthrough" operator="is">true</condition>
++              </and>
++            </dependency>
++          </dependencies>
++          <control type="toggle" />
++        </setting>
++        <setting id="audiooutput2.truehdpassthrough" type="boolean" label="349" help="36369">
++          <level>2</level>
++          <default>false</default>
++          <dependencies>
++            <dependency type="visible">
++              <and>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.config">audiooutput2.truehdpassthrough</condition>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.passthroughdevice">audiooutput2.truehdpassthrough</condition>
++              </and>
++            </dependency>
++            <dependency type="enable">
++              <and>
++                <condition setting="audiooutput2.enabled" operator="is">true</condition>
++                <condition setting="audiooutput2.passthrough" operator="is">true</condition>
++              </and>
++            </dependency>
++          </dependencies>
++          <control type="toggle" />
++        </setting>
++        <setting id="audiooutput2.dtshdpassthrough" type="boolean" label="347" help="36370">
++          <level>2</level>
++          <default>false</default>
++          <dependencies>
++            <dependency type="visible">
++              <and>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.config">audiooutput2.dtshdpassthrough</condition>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.passthroughdevice">audiooutput2.dtshdpassthrough</condition>
++              </and>
++            </dependency>
++            <dependency type="enable">
++              <and>
++                <condition setting="audiooutput2.enabled" operator="is">true</condition>
++                <condition setting="audiooutput2.passthrough" operator="is">true</condition>
++              </and>
++            </dependency>
++          </dependencies>
++          <control type="toggle" />
++        </setting>
++      </group>
++    </category>
+     <category id="input" label="14125" help="36374">
+       <group id="1" label="35000">
+         <setting id="input.peripherals" type="action" label="35000" help="36375">
+diff --git a/system/settings/win32.xml b/system/settings/win32.xml
+index a017d30..cde6193 100644
+--- a/system/settings/win32.xml
++++ b/system/settings/win32.xml
+@@ -50,6 +50,36 @@
+         </setting>
+       </group>
+     </category>
++    <category id="audio2">
++      <group id="1">
++        <setting id="audiooutput2.audiodevice" type="string" label="545" help="36371">
++          <level>0</level>
++          <default>DIRECTSOUND:default</default>
++          <constraints>
++            <options>audiodevices</options>
++          </constraints>
++          <control type="list" format="string" />
++        </setting>
++      </group>
++      <group id="3">
++        <setting id="audiooutput2.passthroughdevice" type="string" label="546" help="36372">
++          <level>1</level>
++          <default>DIRECTSOUND:default</default>
++          <constraints>
++            <options>audiodevicespassthrough</options>
++          </constraints>
++          <dependencies>
++            <dependency type="visible">
++              <and>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.audiodevice">audiooutput2.passthrough</condition>
++                <condition on="property" name="aesettingvisible2" setting="audiooutput2.config">audiooutput2.passthrough</condition>
++              </and>
++            </dependency>
++          </dependencies>
++          <control type="list" format="string" />
++        </setting>
++      </group>
++    </category>
+   </section>
+   <section id="interface">
+     <category id="regional">
+diff --git a/version.txt b/version.txt
+index 3cad8e8..fe1d647 100644
+--- a/version.txt
++++ b/version.txt
+@@ -3,7 +3,7 @@ COMPANY_NAME XBMC-Foundation
+ WEBSITE http://kodi.tv
+ VERSION_MAJOR 17
+ VERSION_MINOR 0
+-VERSION_TAG
++VERSION_TAG DualAudio
+ VERSION_CODE 170000
+ ADDON_API 17.0.000
+ 
+diff --git a/xbmc/Application.cpp b/xbmc/Application.cpp
+index c6ef0c0..8610701 100644
+--- a/xbmc/Application.cpp
++++ b/xbmc/Application.cpp
+@@ -662,6 +662,7 @@ bool CApplication::Create()
+   SetHardwareVolume(m_volumeLevel);
+   CAEFactory::SetMute     (m_muted);
+   CAEFactory::SetSoundMode(CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT_GUISOUNDMODE));
++  CAEFactory::SetSoundMode(CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_GUISOUNDMODE),true);
+ 
+   // initialize m_replayGainSettings
+   m_replayGainSettings.iType = CSettings::GetInstance().GetInt(CSettings::SETTING_MUSICPLAYER_REPLAYGAINTYPE);
+@@ -1463,6 +1464,37 @@ void CApplication::OnSettingChanged(const CSetting *setting)
+       CApplicationMessenger::GetInstance().PostMsg(TMSG_MEDIA_RESTART);
+     }
+   }
++  else if (StringUtils::StartsWithNoCase(settingId, "audiooutput2."))
++  {
++    if (settingId == CSettings::SETTING_AUDIOOUTPUT2_DSPADDONSENABLED)
++    {
++      if (((CSettingBool *) setting)->GetValue())
++      {
++        CAEFactory::OnSettingsChange(settingId,true);
++      }
++      else
++      {
++        CAEFactory::OnSettingsChange(settingId,true);
++      }
++      g_audioManager.CheckAudio2();
++      return;
++    }
++
++    // AE is master of audio settings and needs to be informed first
++    CAEFactory::OnSettingsChange(settingId,true);
++    g_audioManager.CheckAudio2();
++
++    if (settingId == CSettings::SETTING_AUDIOOUTPUT2_GUISOUNDMODE)
++    {
++      CAEFactory::SetSoundMode(((CSettingInt*)setting)->GetValue());
++    }
++    // this tells player whether to open an audio stream passthrough or PCM
++    // if this is changed, audio stream has to be reopened
++    else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGH)
++    {
++      CApplicationMessenger::GetInstance().PostMsg(TMSG_MEDIA_RESTART);
++    }
++  }
+   else if (StringUtils::EqualsNoCase(settingId, CSettings::SETTING_MUSICPLAYER_REPLAYGAINTYPE))
+     m_replayGainSettings.iType = ((CSettingInt*)setting)->GetValue();
+   else if (StringUtils::EqualsNoCase(settingId, CSettings::SETTING_MUSICPLAYER_REPLAYGAINPREAMP))
+@@ -1530,7 +1562,7 @@ bool CApplication::OnSettingUpdate(CSetting* &setting, const char *oldSettingId,
+   }
+ #endif
+ #if defined(TARGET_DARWIN_OSX)
+-  if (setting->GetId() == CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE)
++  if (setting->GetId() == CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE || setting->GetId() == CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE)
+   {
+     CSettingString *audioDevice = (CSettingString*)setting;
+     // Gotham and older didn't enumerate audio devices per stream on osx
+diff --git a/xbmc/cores/AudioEngine/AEFactory.cpp b/xbmc/cores/AudioEngine/AEFactory.cpp
+index 6577ed3..71ae81f 100644
+--- a/xbmc/cores/AudioEngine/AEFactory.cpp
++++ b/xbmc/cores/AudioEngine/AEFactory.cpp
+@@ -31,12 +31,16 @@
+ #include "utils/StringUtils.h"
+ 
+ IAE* CAEFactory::AE = NULL;
++IAE* CAEFactory::AE2 = NULL;
+ static float  g_fVolume = 1.0f;
+ static bool   g_bMute = false;
+ 
+-IAE *CAEFactory::GetEngine()
++IAE *CAEFactory::GetEngine(bool bAudio2)
+ {
+-  return AE;
++  if(!bAudio2)
++    return AE;
++  else
++    return AE2;
+ }
+ 
+ bool CAEFactory::LoadEngine()
+@@ -53,6 +57,20 @@ bool CAEFactory::LoadEngine()
+     AE = NULL;
+   }
+ 
++  if (!AE2)
++  {
++    AE2 = new ActiveAE::CActiveAE();
++
++    if (AE2)
++        AE2->SetAudio2(true);
++
++    if (AE2 && !AE2->CanInit())
++    {
++      delete AE2;
++      AE2 = NULL;
++    }
++  }
++
+   return AE != NULL;
+ }
+ 
+@@ -64,6 +82,12 @@ void CAEFactory::UnLoadEngine()
+     delete AE;
+     AE = NULL;
+   }
++  if(AE2)
++  {
++    AE2->Shutdown();
++    delete AE2;
++    AE2 = NULL;
++  }
+ }
+ 
+ bool CAEFactory::StartEngine()
+@@ -72,7 +96,17 @@ bool CAEFactory::StartEngine()
+     return false;
+ 
+   if (AE->Initialize())
++  {
++    if (AE2)
++    {
++      if(!AE2->Initialize())
++      {
++        delete AE2;
++        AE2 = NULL;
++      }
++    }
+     return true;
++  }
+ 
+   delete AE;
+   AE = NULL;
+@@ -81,18 +115,24 @@ bool CAEFactory::StartEngine()
+ 
+ bool CAEFactory::Suspend()
+ {
++  bool bRet = false;
+   if(AE)
+-    return AE->Suspend();
++    bRet = AE->Suspend();
++  if (AE2)
++    AE2->Suspend();
+ 
+-  return false;
++  return bRet;
+ }
+ 
+ bool CAEFactory::Resume()
+ {
++  bool bRet = false;
+   if(AE)
+-    return AE->Resume();
++    bRet = AE->Resume();
++  if (AE2)
++    AE2->Resume();
+ 
+-  return false;
++  return bRet;
+ }
+ 
+ bool CAEFactory::IsSuspended()
+@@ -105,36 +145,50 @@ bool CAEFactory::IsSuspended()
+ }
+ 
+ /* engine wrapping */
+-IAESound *CAEFactory::MakeSound(const std::string &file)
++IAESound *CAEFactory::MakeSound(const std::string &file, bool bAudio2)
+ {
+-  if(AE)
++  if(!bAudio2 && AE)
+     return AE->MakeSound(file);
++  if(bAudio2 && AE2)
++    return AE2->MakeSound(file);
+   
+   return NULL;
+ }
+ 
+ void CAEFactory::FreeSound(IAESound *sound)
+ {
+-  if(AE)
++  if(!sound)
++    return;
++  bool bAudio2 = sound->IsAudio2();
++
++  if(!bAudio2 && AE)
+     AE->FreeSound(sound);
++  if(bAudio2 && AE2)
++    AE2->FreeSound(sound);
+ }
+ 
+-void CAEFactory::SetSoundMode(const int mode)
++void CAEFactory::SetSoundMode(const int mode, bool bAudio2)
+ {
+-  if(AE)
++  if(!bAudio2 && AE)
+     AE->SetSoundMode(mode);
++  if(bAudio2 && AE2)
++    AE2->SetSoundMode(mode);
+ }
+ 
+-void CAEFactory::OnSettingsChange(std::string setting)
++void CAEFactory::OnSettingsChange(std::string setting, bool bAudio2)
+ {
+-  if(AE)
++  if(!bAudio2 && AE)
+     AE->OnSettingsChange(setting);
++  if(bAudio2 && AE2)
++    AE2->OnSettingsChange(setting);
+ }
+ 
+-void CAEFactory::EnumerateOutputDevices(AEDeviceList &devices, bool passthrough)
++void CAEFactory::EnumerateOutputDevices(AEDeviceList &devices, bool passthrough, bool bAudio2)
+ {
+-  if(AE)
++  if(!bAudio2 && AE)
+     AE->EnumerateOutputDevices(devices, passthrough);
++  if(bAudio2 && AE2)
++    AE2->EnumerateOutputDevices(devices, passthrough);
+ }
+ 
+ void CAEFactory::VerifyOutputDevice(std::string &device, bool passthrough)
+@@ -162,67 +216,89 @@ void CAEFactory::VerifyOutputDevice(std::string &device, bool passthrough)
+   device = firstDevice;
+ }
+ 
+-std::string CAEFactory::GetDefaultDevice(bool passthrough)
++std::string CAEFactory::GetDefaultDevice(bool passthrough, bool bAudio2)
+ {
+-  if(AE)
++  if(!bAudio2 && AE)
+     return AE->GetDefaultDevice(passthrough);
++  if(bAudio2 && AE2)
++    return AE2->GetDefaultDevice(passthrough);
+ 
+   return "default";
+ }
+ 
+-bool CAEFactory::SupportsRaw(AEAudioFormat &format)
++std::string CAEFactory::GetCreateDevice(bool bAudio2)
++{
++  if(!bAudio2 && AE)
++    return AE->GetCreateDevice();
++  if(bAudio2 && AE2)
++    return AE2->GetCreateDevice();
++
++  return "";
++}
++
++bool CAEFactory::SupportsRaw(AEAudioFormat &format, bool bAudio2)
+ {
+   // check if passthrough is enabled
+-  if (!CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGH))
++  if (!CSettings::GetInstance().GetBool(!bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGH))
+     return false;
+ 
+   // fixed config disabled passthrough
+-  if (CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT_CONFIG) == AE_CONFIG_FIXED)
++  if (CSettings::GetInstance().GetInt(!bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_CONFIG : CSettings::SETTING_AUDIOOUTPUT2_CONFIG) == AE_CONFIG_FIXED)
+     return false;
+ 
+   // check if the format is enabled in settings
+-  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_AC3 && !CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_AC3PASSTHROUGH))
++  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_AC3 && !CSettings::GetInstance().GetBool(!bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_AC3PASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_AC3PASSTHROUGH))
+     return false;
+-  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTS_512 && !CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_DTSPASSTHROUGH))
++  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTS_512 && !CSettings::GetInstance().GetBool(!bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_DTSPASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_DTSPASSTHROUGH))
+     return false;
+-  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTS_1024 && !CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_DTSPASSTHROUGH))
++  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTS_1024 && !CSettings::GetInstance().GetBool(!bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_DTSPASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_DTSPASSTHROUGH))
+     return false;
+-  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTS_2048 && !CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_DTSPASSTHROUGH))
++  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTS_2048 && !CSettings::GetInstance().GetBool(!bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_DTSPASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_DTSPASSTHROUGH))
+     return false;
+-  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_CORE && !CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_DTSPASSTHROUGH))
++  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD_CORE && !CSettings::GetInstance().GetBool(!bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_DTSPASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_DTSPASSTHROUGH))
+     return false;
+-  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_EAC3 && !CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_EAC3PASSTHROUGH))
++  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_EAC3 && !CSettings::GetInstance().GetBool(!bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_EAC3PASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_EAC3PASSTHROUGH))
+     return false;
+-  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD && !CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_TRUEHDPASSTHROUGH))
++  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_TRUEHD && !CSettings::GetInstance().GetBool(!bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_TRUEHDPASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_TRUEHDPASSTHROUGH))
+     return false;
+-  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD && !CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_DTSHDPASSTHROUGH))
++  if (format.m_streamInfo.m_type == CAEStreamInfo::STREAM_TYPE_DTSHD && !CSettings::GetInstance().GetBool(!bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_DTSHDPASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_DTSHDPASSTHROUGH))
+     return false;
+ 
+-  if(AE)
++  if(!bAudio2 && AE)
+     return AE->SupportsRaw(format);
++  if(bAudio2 && AE2)
++    return AE2->SupportsRaw(format);
+ 
+   return false;
+ }
+ 
+-bool CAEFactory::SupportsSilenceTimeout()
++bool CAEFactory::SupportsSilenceTimeout(bool bAudio2)
+ {
+-  if(AE)
++  if(!bAudio2 && AE)
+     return AE->SupportsSilenceTimeout();
++  if(bAudio2 && AE2)
++    return AE2->SupportsSilenceTimeout();
+ 
+   return false;
+ }
+ 
+-bool CAEFactory::HasStereoAudioChannelCount()
++bool CAEFactory::HasStereoAudioChannelCount(bool bAudio2)
+ {
+-  if(AE)
++  if(!bAudio2 && AE)
+     return AE->HasStereoAudioChannelCount();
++  if(bAudio2 && AE2)
++    return AE2->HasStereoAudioChannelCount();
++
+   return false;
+ }
+ 
+-bool CAEFactory::HasHDAudioChannelCount()
++bool CAEFactory::HasHDAudioChannelCount(bool bAudio2)
+ {
+-  if(AE)
++  if(!bAudio2 && AE)
+     return AE->HasHDAudioChannelCount();
++  if(bAudio2 && AE2)
++    return AE2->HasHDAudioChannelCount();
++
+   return false;
+ }
+ 
+@@ -230,20 +306,26 @@ bool CAEFactory::HasHDAudioChannelCount()
+   * Returns true if current AudioEngine supports at lest two basic quality levels
+   * @return true if quality setting is supported, otherwise false
+   */
+-bool CAEFactory::SupportsQualitySetting(void) 
++bool CAEFactory::SupportsQualitySetting(bool bAudio2) 
+ {
+-  if (!AE)
+-    return false;
++  if (!bAudio2 && AE)
++    return ((AE->SupportsQualityLevel(AE_QUALITY_LOW)? 1 : 0) + 
++            (AE->SupportsQualityLevel(AE_QUALITY_MID)? 1 : 0) +
++            (AE->SupportsQualityLevel(AE_QUALITY_HIGH)? 1 : 0)) >= 2; 
++  if (bAudio2 && AE2)
++    return ((AE2->SupportsQualityLevel(AE_QUALITY_LOW)? 1 : 0) + 
++            (AE2->SupportsQualityLevel(AE_QUALITY_MID)? 1 : 0) +
++            (AE2->SupportsQualityLevel(AE_QUALITY_HIGH)? 1 : 0)) >= 2; 
+ 
+-  return ((AE->SupportsQualityLevel(AE_QUALITY_LOW)? 1 : 0) + 
+-          (AE->SupportsQualityLevel(AE_QUALITY_MID)? 1 : 0) +
+-          (AE->SupportsQualityLevel(AE_QUALITY_HIGH)? 1 : 0)) >= 2; 
++  return false;
+ }
+   
+ void CAEFactory::SetMute(const bool enabled)
+ {
+   if(AE)
+     AE->SetMute(enabled);
++  if(AE2)
++    AE2->SetMute(enabled);
+ 
+   g_bMute = enabled;
+ }
+@@ -256,6 +338,16 @@ bool CAEFactory::IsMuted()
+   return g_bMute || (g_fVolume == 0.0f);
+ }
+ 
++bool CAEFactory::IsDumb(bool bAudio2)
++{
++  if(!bAudio2 && AE)
++    return AE->IsDumb();
++  if(bAudio2 && AE2)
++    return AE2->IsDumb();
++
++  return true;
++}
++
+ float CAEFactory::GetVolume()
+ {
+   if(AE)
+@@ -267,7 +359,10 @@ float CAEFactory::GetVolume()
+ void CAEFactory::SetVolume(const float volume)
+ {
+   if(AE)
++  {
+     AE->SetVolume(volume);
++    AE2->SetVolume(volume);
++  }
+   else
+     g_fVolume = volume;
+ }
+@@ -276,20 +371,30 @@ void CAEFactory::Shutdown()
+ {
+   if(AE)
+     AE->Shutdown();
++  if(AE2)
++    AE2->Shutdown();
+ }
+ 
+-IAEStream *CAEFactory::MakeStream(AEAudioFormat &audioFormat, unsigned int options, IAEClockCallback *clock)
++IAEStream *CAEFactory::MakeStream(AEAudioFormat &audioFormat, unsigned int options, IAEClockCallback *clock, bool bAudio2)
+ {
+-  if(AE)
++  if(!bAudio2 && AE)
+     return AE->MakeStream(audioFormat, options, clock);
++  if(bAudio2 && AE2)
++    return AE2->MakeStream(audioFormat, options, clock);
+ 
+   return NULL;
+ }
+ 
+ bool CAEFactory::FreeStream(IAEStream *stream)
+ {
+-  if(AE)
++  if(!stream)
++    return false;
++  bool bAudio2 = stream->IsAudio2();
++
++  if(!bAudio2 && AE)
+     return AE->FreeStream(stream);
++  if(bAudio2 && AE2)
++    return AE2->FreeStream(stream);
+ 
+   return false;
+ }
+@@ -298,6 +403,8 @@ void CAEFactory::GarbageCollect()
+ {
+   if(AE)
+     AE->GarbageCollect();
++  if(AE2)
++    AE2->GarbageCollect();
+ }
+ 
+ void CAEFactory::SettingOptionsAudioDevicesFiller(const CSetting *setting, std::vector< std::pair<std::string, std::string> > &list, std::string &current, void *data)
+@@ -312,30 +419,34 @@ void CAEFactory::SettingOptionsAudioDevicesPassthroughFiller(const CSetting *set
+ 
+ void CAEFactory::SettingOptionsAudioQualityLevelsFiller(const CSetting *setting, std::vector< std::pair<std::string, int> > &list, int &current, void *data)
+ {
+-  if (!AE)
++  IAE* _AE = StringUtils::StartsWithNoCase(setting->GetId(), "audiooutput2.") ? AE2 : AE;
++	
++  if (!_AE)
+     return;
+ 
+-  if(AE->SupportsQualityLevel(AE_QUALITY_LOW))
++  if(_AE->SupportsQualityLevel(AE_QUALITY_LOW))
+     list.push_back(std::make_pair(g_localizeStrings.Get(13506), AE_QUALITY_LOW));
+-  if(AE->SupportsQualityLevel(AE_QUALITY_MID))
++  if(_AE->SupportsQualityLevel(AE_QUALITY_MID))
+     list.push_back(std::make_pair(g_localizeStrings.Get(13507), AE_QUALITY_MID));
+-  if(AE->SupportsQualityLevel(AE_QUALITY_HIGH))
++  if(_AE->SupportsQualityLevel(AE_QUALITY_HIGH))
+     list.push_back(std::make_pair(g_localizeStrings.Get(13508), AE_QUALITY_HIGH));
+-  if(AE->SupportsQualityLevel(AE_QUALITY_REALLYHIGH))
++  if(_AE->SupportsQualityLevel(AE_QUALITY_REALLYHIGH))
+     list.push_back(std::make_pair(g_localizeStrings.Get(13509), AE_QUALITY_REALLYHIGH));
+-  if(AE->SupportsQualityLevel(AE_QUALITY_GPU))
++  if(_AE->SupportsQualityLevel(AE_QUALITY_GPU))
+     list.push_back(std::make_pair(g_localizeStrings.Get(38010), AE_QUALITY_GPU));
+ }
+ 
+ void CAEFactory::SettingOptionsAudioStreamsilenceFiller(const CSetting *setting, std::vector< std::pair<std::string, int> > &list, int &current, void *data)
+ {
+-  if (!AE)
++  IAE* _AE = StringUtils::StartsWithNoCase(setting->GetId(), "audiooutput2.") ? AE2 : AE;
++
++  if (!_AE)
+     return;
+ 
+   list.push_back(std::make_pair(g_localizeStrings.Get(20422), XbmcThreads::EndTime::InfiniteValue));
+   list.push_back(std::make_pair(g_localizeStrings.Get(13551), 0));
+ 
+-  if (AE->SupportsSilenceTimeout())
++  if (_AE->SupportsSilenceTimeout())
+   {
+     list.push_back(std::make_pair(StringUtils::Format(g_localizeStrings.Get(13554).c_str(), 1), 1));
+     for (int i = 2; i <= 10; i++)
+@@ -387,20 +498,26 @@ void CAEFactory::UnregisterAudioCallback(IAudioCallback* pCallback)
+ 
+ bool CAEFactory::IsSettingVisible(const std::string &condition, const std::string &value, const CSetting *setting, void *data)
+ {
+-  if (setting == NULL || value.empty() || !AE)
++  IAE* _AE = StringUtils::StartsWithNoCase(setting->GetId(), "audiooutput2.") ? AE2 : AE;
++
++  if (setting == NULL || value.empty() || !_AE)
+     return false;
+ 
+-  return AE->IsSettingVisible(value);
++  return _AE->IsSettingVisible(value);
+ }
+ 
+ void CAEFactory::KeepConfiguration(unsigned int millis)
+ {
+   if (AE)
+     AE->KeepConfiguration(millis);
++  if (AE2)
++    AE2->KeepConfiguration(millis);
+ }
+ 
+ void CAEFactory::DeviceChange()
+ {
+   if (AE)
+     AE->DeviceChange();
++  if (AE2)
++    AE2->DeviceChange();
+ }
+diff --git a/xbmc/cores/AudioEngine/AEFactory.h b/xbmc/cores/AudioEngine/AEFactory.h
+index 100aef1..096ae1f 100644
+--- a/xbmc/cores/AudioEngine/AEFactory.h
++++ b/xbmc/cores/AudioEngine/AEFactory.h
+@@ -30,7 +30,7 @@ class CAEStreamInfo;
+ class CAEFactory
+ {
+ public:
+-  static IAE *GetEngine();
++  static IAE *GetEngine(bool bAudio2 = false);
+   static bool LoadEngine();
+   static void UnLoadEngine();
+   static bool StartEngine();
+@@ -38,29 +38,31 @@ public:
+   static bool Resume(); /** Resumes output after Suspend - re-initializes sink */
+   static bool IsSuspended(); /** Returns true if output has been suspended */
+   /* wrap engine interface */
+-  static IAESound *MakeSound(const std::string &file);
++  static IAESound *MakeSound(const std::string &file, bool bAudio2 = false);
+   static void FreeSound(IAESound *sound);
+-  static void SetSoundMode(const int mode);
+-  static void OnSettingsChange(std::string setting);
+-  static void EnumerateOutputDevices(AEDeviceList &devices, bool passthrough);
++  static void SetSoundMode(const int mode, bool bAudio2 = false);
++  static void OnSettingsChange(std::string setting, bool bAudio2 = false);
++  static void EnumerateOutputDevices(AEDeviceList &devices, bool passthrough, bool bAudio2 = false);
+   static void VerifyOutputDevice(std::string &device, bool passthrough);
+-  static std::string GetDefaultDevice(bool passthrough);
+-  static bool SupportsRaw(AEAudioFormat &format);
+-  static bool SupportsSilenceTimeout();
+-  static bool HasStereoAudioChannelCount();
+-  static bool HasHDAudioChannelCount();
++  static std::string GetDefaultDevice(bool passthrough, bool bAudio2 = false);
++  static std::string GetCreateDevice(bool bAudio2 = false);
++  static bool SupportsRaw(AEAudioFormat &format, bool bAudio2 = false);
++  static bool SupportsSilenceTimeout(bool bAudio2 = false);
++  static bool HasStereoAudioChannelCount(bool bAudio2 = false);
++  static bool HasHDAudioChannelCount(bool bAudio2 = false);
+ 
+   /**
+    * Returns true if current AudioEngine supports at lest two basic quality levels
+    * @return true if quality setting is supported, otherwise false
+    */
+-  static bool SupportsQualitySetting(void);
++  static bool SupportsQualitySetting(bool bAudio2 = false);
+   static void SetMute(const bool enabled);
+   static bool IsMuted();
++  static bool IsDumb(bool bAudio2 = false);
+   static float GetVolume();
+   static void SetVolume(const float volume);
+   static void Shutdown();
+-  static IAEStream *MakeStream(AEAudioFormat &audioFormat, unsigned int options = 0, IAEClockCallback *clock = NULL);
++  static IAEStream *MakeStream(AEAudioFormat &audioFormat, unsigned int options = 0, IAEClockCallback *clock = NULL, bool bAudio2 = false);
+   static bool FreeStream(IAEStream *stream);
+   static void GarbageCollect();
+ 
+@@ -77,7 +79,7 @@ public:
+ 
+ private:
+   static IAE *AE;
+-
++  static IAE *AE2;
+   static void SettingOptionsAudioDevicesFillerGeneral(const CSetting *setting, std::vector< std::pair<std::string, std::string> > &list, std::string &current, bool passthrough);
+ };
+ 
+diff --git a/xbmc/cores/AudioEngine/AESinkFactory.cpp b/xbmc/cores/AudioEngine/AESinkFactory.cpp
+index 952461d..7c7a7eb 100644
+--- a/xbmc/cores/AudioEngine/AESinkFactory.cpp
++++ b/xbmc/cores/AudioEngine/AESinkFactory.cpp
+@@ -166,6 +166,9 @@ IAESink *CAESinkFactory::Create(std::string &device, AEAudioFormat &desiredForma
+   IAESink       *sink;
+   std::string    tmpDevice = device;
+ 
++  if (device == "NULL")
++    driver = "NULL";
++
+   sink = TrySink(driver, tmpDevice, tmpFormat);
+   if (sink)
+   {
+diff --git a/xbmc/cores/AudioEngine/Encoders/AEEncoderFFmpeg.cpp b/xbmc/cores/AudioEngine/Encoders/AEEncoderFFmpeg.cpp
+index a2a88fa..780230c 100644
+--- a/xbmc/cores/AudioEngine/Encoders/AEEncoderFFmpeg.cpp
++++ b/xbmc/cores/AudioEngine/Encoders/AEEncoderFFmpeg.cpp
+@@ -96,7 +96,7 @@ bool CAEEncoderFFmpeg::Initialize(AEAudioFormat &format, bool allow_planar_input
+ {
+   Reset();
+ 
+-  bool ac3 = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_AC3PASSTHROUGH);
++  bool ac3 = CSettings::GetInstance().GetBool(!m_bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_AC3PASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_AC3PASSTHROUGH);
+ 
+   AVCodec *codec = NULL;
+ 
+diff --git a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAE.cpp b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAE.cpp
+index f5671b8..f7c222d 100644
+--- a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAE.cpp
++++ b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAE.cpp
+@@ -238,6 +238,10 @@ bool CEngineStats::IsSuspended()
+   return m_suspended;
+ }
+ 
++#define STR_2ND (m_bAudio2 ? " 2nd" : "")
++
++CCriticalSection CActiveAE::m_sinkLock;
++bool CActiveAE::m_bFirstSinkOK = false;
+ void CEngineStats::SetDSP(bool state)
+ {
+   CSingleLock lock(m_lock);
+@@ -285,6 +289,7 @@ CActiveAE::CActiveAE() :
+   m_aeGUISoundForce = false;
+   m_stats.Reset(44100, true);
+   m_streamIdGen = 0;
++  m_bDumb = true;
+ }
+ 
+ CActiveAE::~CActiveAE()
+@@ -962,6 +967,7 @@ void CActiveAE::Process()
+   m_extKeepConfig = 0;
+ 
+   // start sink
++  m_sink.SetAudio2(m_bAudio2);
+   m_sink.Start();
+ 
+   while (!m_bStop)
+@@ -1096,6 +1102,9 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
+   ApplySettingsToFormat(m_sinkRequestFormat, m_settings, (int*)&m_mode);
+   m_extKeepConfig = 0;
+ 
++  CheckDevice1(true);
++  CSingleLock slock(m_sinkLock);
++  CheckDevice2(true);
+   std::string device = (m_sinkRequestFormat.m_dataFormat == AE_FMT_RAW) ? m_settings.passthoughdevice : m_settings.device;
+   std::string driver;
+   CAESinkFactory::ParseDevice(device, driver);
+@@ -1105,7 +1114,11 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
+   {
+     FlushEngine();
+     if (!InitSink())
++    {
++      CheckDevice2(false);
++      CheckDevice1(false);
+       return;
++    }
+     m_settings.driver = driver;
+     m_currDevice = device;
+     initSink = true;
+@@ -1123,6 +1136,9 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
+       }
+     }
+   }
++  CheckDevice2(false);
++  slock.Leave();
++  CheckDevice1(false);
+ 
+   if (m_silenceBuffers)
+   {
+@@ -1142,7 +1158,7 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
+     inputFormat.m_dataFormat = AE_FMT_FLOAT;
+     inputFormat.m_frameSize = inputFormat.m_channelLayout.Count() *
+                               (CAEUtil::DataFormatToBits(inputFormat.m_dataFormat) >> 3);
+-    m_silenceBuffers = new CActiveAEBufferPool(inputFormat);
++    m_silenceBuffers = new CActiveAEBufferPool(inputFormat, m_bAudio2);
+     m_silenceBuffers->Create(MAX_WATER_LEVEL*1000);
+     sinkInputFormat = inputFormat;
+     m_internalFormat = inputFormat;
+@@ -1193,6 +1209,7 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
+       if (!m_encoder)
+       {
+         m_encoder = new CAEEncoderFFmpeg();
++        m_encoder->SetAudio2(m_bAudio2);
+         m_encoder->Initialize(outputFormat, true);
+         m_encoderFormat = outputFormat;
+       }
+@@ -1222,7 +1239,7 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
+         }
+         if (!m_encoderBuffers)
+         {
+-          m_encoderBuffers = new CActiveAEBufferPool(format);
++          m_encoderBuffers = new CActiveAEBufferPool(format, m_bAudio2);
+           m_encoderBuffers->Create(MAX_WATER_LEVEL*1000);
+         }
+       }
+@@ -1267,7 +1284,7 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
+         (*it)->m_format.m_frames = m_internalFormat.m_frames * ((float)(*it)->m_format.m_sampleRate / m_internalFormat.m_sampleRate);
+ 
+         // create buffer pool
+-        (*it)->m_inputBuffers = new CActiveAEBufferPool((*it)->m_format);
++        (*it)->m_inputBuffers = new CActiveAEBufferPool((*it)->m_format, m_bAudio2);
+         (*it)->m_inputBuffers->Create(MAX_CACHE_LEVEL*1000);
+         (*it)->m_streamSpace = (*it)->m_format.m_frameSize * (*it)->m_format.m_frames;
+ 
+@@ -1324,7 +1341,7 @@ void CActiveAE::Configure(AEAudioFormat *desiredFmt)
+         vizFormat.m_sampleRate = 44100;
+ 
+         // input buffers
+-        m_vizBuffersInput = new CActiveAEBufferPool(m_internalFormat);
++        m_vizBuffersInput = new CActiveAEBufferPool(m_internalFormat, m_bAudio2);
+         m_vizBuffersInput->Create(2000);
+ 
+         // resample buffers
+@@ -1397,6 +1414,7 @@ CActiveAEStream* CActiveAE::CreateStream(MsgStreamNew *streamMsg)
+   // create the stream
+   CActiveAEStream *stream;
+   stream = new CActiveAEStream(&streamMsg->format, m_streamIdGen++);
++  stream->SetAudio2(m_bAudio2);
+   stream->m_streamPort = new CActiveAEDataProtocol("stream",
+                              &stream->m_inMsgEvent, &m_outMsgEvent);
+ 
+@@ -1526,7 +1544,7 @@ void CActiveAE::ClearDiscardedBuffers()
+       rbuf->Flush();
+     }
+     // if all buffers have returned, we can delete the buffer pool
+-    if ((*it)->m_allSamples.size() == (*it)->m_freeSamples.size())
++    if ((*it) && (*it)->m_allSamples.size() == (*it)->m_freeSamples.size())
+     {
+       delete (*it);
+       CLog::Log(LOGDEBUG, "CActiveAE::ClearDiscardedBuffers - buffer pool deleted");
+@@ -1741,7 +1759,7 @@ bool CActiveAE::InitSink()
+     if (!success)
+     {
+       reply->Release();
+-      CLog::Log(LOGERROR, "ActiveAE::%s - returned error", __FUNCTION__);
++      CLog::Log(LOGERROR, "ActiveAE::%s%s - returned error", __FUNCTION__, STR_2ND);
+       m_extError = true;
+       return false;
+     }
+@@ -1754,12 +1772,13 @@ bool CActiveAE::InitSink()
+       m_stats.SetSinkCacheTotal(data->cacheTotal);
+       m_stats.SetSinkLatency(data->latency);
+       m_stats.SetCurrentSinkFormat(m_sinkFormat);
++	  m_bDumb = data->isNull ? true : false;
+     }
+     reply->Release();
+   }
+   else
+   {
+-    CLog::Log(LOGERROR, "ActiveAE::%s - failed to init", __FUNCTION__);
++    CLog::Log(LOGERROR, "ActiveAE::%s%s - failed to init", __FUNCTION__, STR_2ND);
+     m_stats.SetSinkCacheTotal(0);
+     m_stats.SetSinkLatency(0);
+     AEAudioFormat invalidFormat;
+@@ -1785,7 +1804,7 @@ void CActiveAE::DrainSink()
+     if (!success)
+     {
+       reply->Release();
+-      CLog::Log(LOGERROR, "ActiveAE::%s - returned error on drain", __FUNCTION__);
++      CLog::Log(LOGERROR, "ActiveAE::%s%s - returned error on drain", __FUNCTION__, STR_2ND);
+       m_extError = true;
+       return;
+     }
+@@ -1793,7 +1812,7 @@ void CActiveAE::DrainSink()
+   }
+   else
+   {
+-    CLog::Log(LOGERROR, "ActiveAE::%s - failed to drain", __FUNCTION__);
++    CLog::Log(LOGERROR, "ActiveAE::%s%s - failed to drain", __FUNCTION__, STR_2ND);
+     m_extError = true;
+     return;
+   }
+@@ -1810,14 +1829,14 @@ void CActiveAE::UnconfigureSink()
+     bool success = reply->signal == CSinkControlProtocol::ACC;
+     if (!success)
+     {
+-      CLog::Log(LOGERROR, "ActiveAE::%s - returned error", __FUNCTION__);
++      CLog::Log(LOGERROR, "ActiveAE::%s%s - returned error", __FUNCTION__, STR_2ND);
+       m_extError = true;
+     }
+     reply->Release();
+   }
+   else
+   {
+-    CLog::Log(LOGERROR, "ActiveAE::%s - failed to unconfigure", __FUNCTION__);
++    CLog::Log(LOGERROR, "ActiveAE::%s%s - failed to unconfigure", __FUNCTION__, STR_2ND);
+     m_extError = true;
+   }
+ 
+@@ -1825,6 +1844,7 @@ void CActiveAE::UnconfigureSink()
+   m_currDevice = "";
+ 
+   m_inMsgEvent.Reset();
++  m_bDumb = true;
+ }
+ 
+ 
+@@ -2542,6 +2562,9 @@ void CActiveAE::Deamplify(CSoundPacket &dstSample)
+ 
+ void CActiveAE::LoadSettings()
+ {
++  if(m_bAudio2)
++    return LoadSettings2();
++
+   m_settings.device = CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE);
+   m_settings.passthoughdevice = CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE);
+ 
+@@ -2571,6 +2594,96 @@ void CActiveAE::LoadSettings()
+   m_settings.silenceTimeout = CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT_STREAMSILENCE) * 60000;
+ }
+ 
++void CActiveAE::LoadSettings2()
++{
++  m_settings.device = CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE);
++  m_settings.passthoughdevice = CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE);
++
++  m_settings.config = CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CONFIG);
++  m_settings.channels = (m_sink.GetDeviceType(m_settings.device) == AE_DEVTYPE_IEC958) ? AE_CH_LAYOUT_2_0 : CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CHANNELS);
++  m_settings.samplerate = CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_SAMPLERATE);
++
++  m_settings.dspaddonsenabled = IsSettingVisible(CSettings::SETTING_AUDIOOUTPUT2_DSPADDONSENABLED) ? CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_DSPADDONSENABLED) : false;
++  m_settings.dspaddonsenabled = false; // dsp not supported in 2nd audio
++
++  m_settings.stereoupmix = IsSettingVisible(CSettings::SETTING_AUDIOOUTPUT2_STEREOUPMIX) ? CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_STEREOUPMIX) : false;
++  m_settings.normalizelevels = !CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_MAINTAINORIGINALVOLUME);
++  m_settings.guisoundmode = CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_GUISOUNDMODE);
++
++  m_settings.passthrough = m_settings.config == AE_CONFIG_FIXED ? false : CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGH);
++  if (!m_sink.HasPassthroughDevice())
++    m_settings.passthrough = false;
++  m_settings.ac3passthrough = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_AC3PASSTHROUGH);
++  m_settings.ac3transcode = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_AC3TRANSCODE);
++  m_settings.eac3passthrough = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_EAC3PASSTHROUGH);
++  m_settings.truehdpassthrough = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_TRUEHDPASSTHROUGH);
++  m_settings.dtspassthrough = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_DTSPASSTHROUGH);
++  m_settings.dtshdpassthrough = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_DTSHDPASSTHROUGH);
++
++  m_settings.resampleQuality = static_cast<AEQuality>(CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_PROCESSQUALITY));
++  m_settings.atempoThreshold = CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_ATEMPOTHRESHOLD) / 100.0;
++  m_settings.streamNoise = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_STREAMNOISE);
++  m_settings.silenceTimeout = CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_STREAMSILENCE) * 60000;
++
++  SetDisabled(!CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_ENABLED));
++}
++
++void CActiveAE::CheckDevice1(bool bPreInitSink)
++{
++  if(!bPreInitSink)
++  {
++    if(m_bAudio2)
++      m_bFirstSinkOK = false;
++    else
++      m_bFirstSinkOK = true;
++    return;
++  }
++  if(m_bAudio2)
++  {
++    for(int i=0; !m_bFirstSinkOK && i<100; i++)
++      Sleep(10);
++  }
++}
++
++void CActiveAE::CheckDevice2(bool bPreInitSink)
++{
++  if(!m_bAudio2)
++    return;
++
++  if(bPreInitSink)
++  {
++    m_device_sv = m_settings.device;
++    m_passthoughdevice_sv = m_settings.passthoughdevice;
++  }
++  else
++  {
++    m_settings.device = m_device_sv;
++    m_settings.passthoughdevice = m_passthoughdevice_sv;
++	return;
++  }
++
++  if(IsDisabled())
++  {
++    m_settings.device = "NULL";
++    m_settings.passthoughdevice = "NULL";
++    m_bDumb = true;
++  }
++  else
++  {
++    // avoid conflict with 1st audio
++    std::string device1 = CAEFactory::GetCreateDevice();
++    std::string device, driver;
++    device = m_settings.device;
++    CAESinkFactory::ParseDevice(device, driver);
++    if(device == device1)
++      m_settings.device = "NULL";
++    device = m_settings.passthoughdevice;
++    CAESinkFactory::ParseDevice(device, driver);
++    if(device == device1)
++    m_settings.passthoughdevice = "NULL";
++  }
++}
++
+ bool CActiveAE::Initialize()
+ {
+   Create();
+@@ -2614,6 +2727,9 @@ std::string CActiveAE::GetDefaultDevice(bool passthrough)
+ 
+ void CActiveAE::OnSettingsChange(const std::string& setting)
+ {
++  if(m_bAudio2)
++    return OnSettingsChange2(setting);
++
+   if (setting == CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE      ||
+       setting == CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE            ||
+       setting == CSettings::SETTING_AUDIOOUTPUT_CONFIG                 ||
+@@ -2638,9 +2754,36 @@ void CActiveAE::OnSettingsChange(const std::string& setting)
+   }
+ }
+ 
++void CActiveAE::OnSettingsChange2(const std::string& setting)
++{
++  if (setting == CSettings::SETTING_AUDIOOUTPUT2_ENABLED                ||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE		||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE			||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_CONFIG 				||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_AC3PASSTHROUGH 		||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_AC3TRANSCODE			||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_EAC3PASSTHROUGH		||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_DTSPASSTHROUGH 		||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_TRUEHDPASSTHROUGH		||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_DTSHDPASSTHROUGH		||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_CHANNELS				||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_STEREOUPMIX			||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_STREAMSILENCE			||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_PROCESSQUALITY 		||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_ATEMPOTHRESHOLD        ||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGH			||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_SAMPLERATE 			||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_MAINTAINORIGINALVOLUME ||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_GUISOUNDMODE           ||
++      setting == CSettings::SETTING_AUDIOOUTPUT2_STREAMNOISE)
++  {
++    m_controlPort.SendOutMessage(CActiveAEControlProtocol::RECONFIGURE);
++  }
++}
++
+ bool CActiveAE::SupportsRaw(AEAudioFormat &format)
+ {
+-  if (!m_sink.SupportsFormat(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE), format))
++  if (!m_sink.SupportsFormat(CSettings::GetInstance().GetString(!m_bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE : CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE), format))
+     return false;
+ 
+   return true;
+@@ -2653,18 +2796,18 @@ bool CActiveAE::SupportsSilenceTimeout()
+ 
+ bool CActiveAE::HasStereoAudioChannelCount()
+ {
+-  std::string device = CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE);
+-  int numChannels = (m_sink.GetDeviceType(device) == AE_DEVTYPE_IEC958) ? AE_CH_LAYOUT_2_0 : CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT_CHANNELS);
+-  bool passthrough = CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT_CONFIG) == AE_CONFIG_FIXED ? false : CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGH);
++  std::string device = CSettings::GetInstance().GetString(!m_bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE : CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE);
++  int numChannels = (m_sink.GetDeviceType(device) == AE_DEVTYPE_IEC958) ? AE_CH_LAYOUT_2_0 : CSettings::GetInstance().GetInt(!m_bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_CHANNELS : CSettings::SETTING_AUDIOOUTPUT2_CHANNELS);
++  bool passthrough = CSettings::GetInstance().GetInt(!m_bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_CONFIG : CSettings::SETTING_AUDIOOUTPUT2_CONFIG) == AE_CONFIG_FIXED ? false : CSettings::GetInstance().GetBool(!m_bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGH);
+   return numChannels == AE_CH_LAYOUT_2_0 && ! (passthrough &&
+-    CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_AC3PASSTHROUGH) &&
+-    CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT_AC3TRANSCODE));
++    CSettings::GetInstance().GetBool(!m_bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_AC3PASSTHROUGH : CSettings::SETTING_AUDIOOUTPUT2_AC3PASSTHROUGH) &&
++    CSettings::GetInstance().GetBool(!m_bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_AC3TRANSCODE : CSettings::SETTING_AUDIOOUTPUT2_AC3TRANSCODE));
+ }
+ 
+ bool CActiveAE::HasHDAudioChannelCount()
+ {
+-  std::string device = CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE);
+-  int numChannels = (m_sink.GetDeviceType(device) == AE_DEVTYPE_IEC958) ? AE_CH_LAYOUT_2_0 : CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT_CHANNELS);
++  std::string device = CSettings::GetInstance().GetString(!m_bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE : CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE);
++  int numChannels = (m_sink.GetDeviceType(device) == AE_DEVTYPE_IEC958) ? AE_CH_LAYOUT_2_0 : CSettings::GetInstance().GetInt(!m_bAudio2 ? CSettings::SETTING_AUDIOOUTPUT_CHANNELS : CSettings::SETTING_AUDIOOUTPUT2_CHANNELS);
+   return numChannels > AE_CH_LAYOUT_5_1;
+ }
+ 
+@@ -2682,6 +2825,9 @@ bool CActiveAE::SupportsQualityLevel(enum AEQuality level)
+ 
+ bool CActiveAE::IsSettingVisible(const std::string &settingId)
+ {
++  if(m_bAudio2)
++    return IsSettingVisible2(settingId);
++
+   if (settingId == CSettings::SETTING_AUDIOOUTPUT_SAMPLERATE)
+   {
+     if (m_sink.GetDeviceType(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE)) == AE_DEVTYPE_IEC958)
+@@ -2773,6 +2919,99 @@ bool CActiveAE::IsSettingVisible(const std::string &settingId)
+   return false;
+ }
+ 
++bool CActiveAE::IsSettingVisible2(const std::string &settingId)
++{
++  if (settingId == CSettings::SETTING_AUDIOOUTPUT2_SAMPLERATE)
++  {
++    if (m_sink.GetDeviceType(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE)) == AE_DEVTYPE_IEC958)
++      return true;
++    if (CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CONFIG) == AE_CONFIG_FIXED)
++      return true;
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_CHANNELS)
++  {
++    if (m_sink.GetDeviceType(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE)) != AE_DEVTYPE_IEC958)
++      return true;
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGH)
++  {
++    if (m_sink.HasPassthroughDevice() && CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CONFIG) != AE_CONFIG_FIXED)
++      return true;
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_DTSPASSTHROUGH)
++  {
++    AEAudioFormat format;
++    format.m_dataFormat = AE_FMT_RAW;
++    format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_DTS_512;
++    format.m_sampleRate = 48000;
++    if (m_sink.SupportsFormat(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE), format) &&
++        CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CONFIG) != AE_CONFIG_FIXED)
++      return true;
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_TRUEHDPASSTHROUGH)
++  {
++    AEAudioFormat format;
++    format.m_dataFormat = AE_FMT_RAW;
++    format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_TRUEHD;
++    format.m_streamInfo.m_sampleRate = 192000;
++    if (m_sink.SupportsFormat(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE), format) &&
++        CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CONFIG) != AE_CONFIG_FIXED)
++      return true;
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_DTSHDPASSTHROUGH)
++  {
++    AEAudioFormat format;
++    format.m_dataFormat = AE_FMT_RAW;
++    format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_DTSHD;
++    if (m_sink.SupportsFormat(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE), format) &&
++        CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CONFIG) != AE_CONFIG_FIXED)
++      return true;
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_EAC3PASSTHROUGH)
++  {
++    AEAudioFormat format;
++    format.m_dataFormat = AE_FMT_RAW;
++    format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_EAC3;
++    if (m_sink.SupportsFormat(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE), format) &&
++        CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CONFIG) != AE_CONFIG_FIXED)
++      return true;
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_STEREOUPMIX)
++  {
++    if (m_sink.HasPassthroughDevice() ||
++        CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CHANNELS) > AE_CH_LAYOUT_2_0)
++    return true;
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_AC3TRANSCODE)
++  {
++    if (m_sink.HasPassthroughDevice() &&
++        CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_AC3PASSTHROUGH) &&
++        CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CONFIG) != AE_CONFIG_FIXED &&
++        (CSettings::GetInstance().GetInt(CSettings::SETTING_AUDIOOUTPUT2_CHANNELS) <= AE_CH_LAYOUT_2_0 || m_sink.GetDeviceType(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE)) == AE_DEVTYPE_IEC958))
++      return true;
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_DSPADDONSENABLED)
++  {
++    if (m_sink.GetDeviceType(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE)) != AE_DEVTYPE_IEC958)
++    {
++      return true;
++    }
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_DSPSETTINGS)
++  {
++    if (CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_DSPADDONSENABLED) &&
++        m_sink.GetDeviceType(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE)) != AE_DEVTYPE_IEC958)
++      return true;
++  }
++  else if (settingId == CSettings::SETTING_AUDIOOUTPUT2_DSPRESETDB)
++  {
++    if (CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_DSPADDONSENABLED) &&
++        m_sink.GetDeviceType(CSettings::GetInstance().GetString(CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE)) != AE_DEVTYPE_IEC958)
++      return true;
++  }
++  return false;
++}
++
+ void CActiveAE::Shutdown()
+ {
+   Dispose();
+@@ -2947,6 +3186,7 @@ IAESound *CActiveAE::MakeSound(const std::string& file)
+   SampleConfig config;
+ 
+   sound = new CActiveAESound(file);
++  sound->SetAudio2(m_bAudio2);
+   if (!sound->Prepare())
+   {
+     delete sound;
+diff --git a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAE.h b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAE.h
+index e29eb57..56b1b2d 100644
+--- a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAE.h
++++ b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAE.h
+@@ -246,6 +246,7 @@ public:
+   virtual void  SetVolume(const float volume);
+   virtual void  SetMute(const bool enabled);
+   virtual bool  IsMuted();
++  virtual bool  IsDumb() { return m_bDumb; }
+   virtual void  SetSoundMode(const int mode);
+ 
+   /* returns a new stream for data in the specified format */
+@@ -260,6 +261,7 @@ public:
+ 
+   virtual void EnumerateOutputDevices(AEDeviceList &devices, bool passthrough);
+   virtual std::string GetDefaultDevice(bool passthrough);
++  virtual std::string GetCreateDevice() {return m_currDevice;}
+   virtual bool SupportsRaw(AEAudioFormat &format);
+   virtual bool SupportsSilenceTimeout();
+   virtual bool HasStereoAudioChannelCount();
+@@ -306,6 +308,11 @@ protected:
+   void Start();
+   void Dispose();
+   void LoadSettings();
++  void LoadSettings2();
++  void CheckDevice1(bool bPreInitSink);
++  void CheckDevice2(bool bPreInitSink);
++  void OnSettingsChange2(const std::string& setting);
++  bool IsSettingVisible2(const std::string &settingId);
+   bool NeedReconfigureBuffers();
+   bool NeedReconfigureSink();
+   void ApplySettingsToFormat(AEAudioFormat &format, AudioSettings &settings, int *mode = NULL);
+@@ -398,5 +405,11 @@ protected:
+   float m_aeVolume;
+   bool m_aeMuted;
+   bool m_aeGUISoundForce;
++
++  bool m_bDumb;
++  std::string m_device_sv;
++  std::string m_passthoughdevice_sv;
++  static bool m_bFirstSinkOK;
++  static CCriticalSection m_sinkLock;
+ };
+ };
+diff --git a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEBuffer.cpp b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEBuffer.cpp
+index d38afea..648fa32 100644
+--- a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEBuffer.cpp
++++ b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEBuffer.cpp
+@@ -29,10 +29,11 @@
+ using namespace ActiveAE;
+ 
+ /* typecast AE to CActiveAE */
+-#define AE (*((CActiveAE*)CAEFactory::GetEngine()))
++#define AE (*((CActiveAE*)CAEFactory::GetEngine(m_bAudio2)))
+ 
+-CSoundPacket::CSoundPacket(SampleConfig conf, int samples) : config(conf)
++CSoundPacket::CSoundPacket(SampleConfig conf, int samples, bool bAudio2) : config(conf)
+ {
++  m_bAudio2 = bAudio2;
+   data = AE.AllocSoundSample(config, samples, bytes_per_sample, planes, linesize);
+   max_nb_samples = samples;
+   nb_samples = 0;
+@@ -70,8 +71,10 @@ void CSampleBuffer::Return()
+     pool->ReturnBuffer(this);
+ }
+ 
+-CActiveAEBufferPool::CActiveAEBufferPool(AEAudioFormat format)
++CActiveAEBufferPool::CActiveAEBufferPool(AEAudioFormat format, bool bAudio2)
+ {
++  m_bAudio2 = bAudio2;
++
+   m_format = format;
+   if (m_format.m_dataFormat == AE_FMT_RAW)
+   {
+@@ -135,7 +138,7 @@ bool CActiveAEBufferPool::Create(unsigned int totaltime)
+   {
+     buffer = new CSampleBuffer();
+     buffer->pool = this;
+-    buffer->pkt = new CSoundPacket(config, m_format.m_frames);
++    buffer->pkt = new CSoundPacket(config, m_format.m_frames, m_bAudio2);
+ 
+     m_allSamples.push_back(buffer);
+     m_freeSamples.push_back(buffer);
+diff --git a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEBuffer.h b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEBuffer.h
+index 68e8942..558ce0a 100644
+--- a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEBuffer.h
++++ b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEBuffer.h
+@@ -49,7 +49,7 @@ struct SampleConfig
+ class CSoundPacket
+ {
+ public:
+-  CSoundPacket(SampleConfig conf, int samples);
++  CSoundPacket(SampleConfig conf, int samples, bool bAudio2 = false);
+   ~CSoundPacket();
+   uint8_t **data;                        // array with pointers to planes of data
+   SampleConfig config;
+@@ -59,6 +59,8 @@ public:
+   int nb_samples;                        // number of frames used
+   int max_nb_samples;                    // max number of frames this packet can hold
+   int pause_burst_ms;
++protected:
++  bool m_bAudio2;
+ };
+ 
+ class CActiveAEBufferPool;
+@@ -80,7 +82,7 @@ public:
+ class CActiveAEBufferPool
+ {
+ public:
+-  CActiveAEBufferPool(AEAudioFormat format);
++  CActiveAEBufferPool(AEAudioFormat format, bool bAudio2 = false);
+   virtual ~CActiveAEBufferPool();
+   virtual bool Create(unsigned int totaltime);
+   CSampleBuffer *GetFreeBuffer();
+@@ -88,6 +90,8 @@ public:
+   AEAudioFormat m_format;
+   std::deque<CSampleBuffer*> m_allSamples;
+   std::deque<CSampleBuffer*> m_freeSamples;
++protected:
++  bool m_bAudio2;
+ };
+ 
+ class IAEResample;
+diff --git a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESink.cpp b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESink.cpp
+index 2ad960c..6b77eb9 100644
+--- a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESink.cpp
++++ b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESink.cpp
+@@ -38,6 +38,8 @@
+ 
+ using namespace ActiveAE;
+ 
++#define STR_2ND (m_bAudio2 ? " 2nd" : "")
++
+ CActiveAESink::CActiveAESink(CEvent *inMsgEvent) :
+   CThread("AESink"),
+   m_controlPort("SinkControlPort", inMsgEvent, &m_outMsgEvent),
+@@ -49,6 +51,7 @@ CActiveAESink::CActiveAESink(CEvent *inMsgEvent) :
+   m_volume = 0.0;
+   m_packer = nullptr;
+   m_streamNoise = true;
++  m_bAudio2 = false;
+ }
+ 
+ void CActiveAESink::Start()
+@@ -76,7 +79,8 @@ void CActiveAESink::Dispose()
+     m_sink = nullptr;
+   }
+ 
+-  delete m_sampleOfSilence.pkt;
++  if(m_sampleOfSilence.pkt)
++    delete m_sampleOfSilence.pkt;
+   m_sampleOfSilence.pkt = nullptr;
+ 
+   delete m_packer;
+@@ -281,6 +285,7 @@ void CActiveAESink::StateMachine(int signal, Protocol *port, Message *msg)
+             reply.cacheTotal = m_sink->GetCacheTotal();
+             reply.latency = m_sink->GetLatency();
+             reply.hasVolume = m_sink->HasVolume();
++            reply.isNull = (std::string(m_sink->GetName()) == "NULL");
+             m_state = S_TOP_CONFIGURED_IDLE;
+             m_extTimeout = 10000;
+             m_sinkLatency = (int64_t)(reply.latency * 1000);
+@@ -819,7 +824,7 @@ void CActiveAESink::OpenSink()
+ 
+   // WARNING: this changes format and does not use passthrough
+   m_sinkFormat = m_requestedFormat;
+-  CLog::Log(LOGDEBUG, "CActiveAESink::OpenSink - trying to open device %s", device.c_str());
++  CLog::Log(LOGDEBUG, "CActiveAESink::OpenSink%s - trying to open device %s", STR_2ND, device.c_str());
+   m_sink = CAESinkFactory::Create(device, m_sinkFormat, passthrough);
+ 
+   // try first device in out list
+@@ -831,7 +836,7 @@ void CActiveAESink::OpenSink()
+     if (!driver.empty())
+       device = driver + ":" + device;
+     m_sinkFormat = m_requestedFormat;
+-    CLog::Log(LOGDEBUG, "CActiveAESink::OpenSink - trying to open device %s", device.c_str());
++    CLog::Log(LOGDEBUG, "CActiveAESink::OpenSink%s - trying to open device %s", STR_2ND, device.c_str());
+     m_sink = CAESinkFactory::Create(device, m_sinkFormat, passthrough);
+   }
+ 
+@@ -841,13 +846,13 @@ void CActiveAESink::OpenSink()
+   {
+     device = "NULL:NULL";
+     m_sinkFormat = m_requestedFormat;
+-    CLog::Log(LOGDEBUG, "CActiveAESink::OpenSink - open NULL sink");
++    CLog::Log(LOGDEBUG, "CActiveAESink::OpenSink%s - open NULL sink", STR_2ND);
+     m_sink = CAESinkFactory::Create(device, m_sinkFormat, passthrough);
+   }
+ 
+   if (!m_sink)
+   {
+-    CLog::Log(LOGERROR, "CActiveAESink::OpenSink - no sink was returned");
++    CLog::Log(LOGERROR, "CActiveAESink::OpenSink%s - no sink was returned", STR_2ND);
+     m_extError = true;
+     return;
+   }
+@@ -866,7 +871,7 @@ void CActiveAESink::OpenSink()
+     m_sinkFormat.m_dataFormat = AE_FMT_S32NE;
+ #endif
+ 
+-  CLog::Log(LOGDEBUG, "CActiveAESink::OpenSink - %s Initialized:", m_sink->GetName());
++  CLog::Log(LOGDEBUG, "CActiveAESink::OpenSink%s - %s Initialized:", STR_2ND, m_sink->GetName());
+   CLog::Log(LOGDEBUG, "  Output Device : %s", m_deviceFriendlyName.c_str());
+   CLog::Log(LOGDEBUG, "  Sample Rate   : %d", m_sinkFormat.m_sampleRate);
+   CLog::Log(LOGDEBUG, "  Sample Format : %s", CAEUtil::DataFormatToStr(m_sinkFormat.m_dataFormat));
+@@ -885,8 +890,9 @@ void CActiveAESink::OpenSink()
+   config.sample_rate = m_sinkFormat.m_sampleRate;
+ 
+   // init sample of silence/noise
+-  delete m_sampleOfSilence.pkt;
+-  m_sampleOfSilence.pkt = new CSoundPacket(config, m_sinkFormat.m_frames);
++  if(m_sampleOfSilence.pkt)
++    delete m_sampleOfSilence.pkt;
++  m_sampleOfSilence.pkt = new CSoundPacket(config, m_sinkFormat.m_frames, m_bAudio2);
+   m_sampleOfSilence.pkt->nb_samples = m_sampleOfSilence.pkt->max_nb_samples;
+   if (!passthrough)
+     GenerateNoise();
+diff --git a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESink.h b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESink.h
+index 08fe57c..038f7e6 100644
+--- a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESink.h
++++ b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESink.h
+@@ -48,6 +48,7 @@ struct SinkReply
+   float cacheTotal;
+   float latency;
+   bool hasVolume;
++  bool isNull;
+ };
+ 
+ class CSinkControlProtocol : public Protocol
+@@ -104,6 +105,7 @@ public:
+   bool SupportsFormat(const std::string &device, AEAudioFormat &format);
+   CSinkControlProtocol m_controlPort;
+   CSinkDataProtocol m_dataPort;
++  void SetAudio2(bool bAudio2){ m_bAudio2 = bAudio2; }
+ 
+ protected:
+   void Process();
+@@ -152,6 +154,7 @@ protected:
+   CAEBitstreamPacker *m_packer;
+   bool m_needIecPack;
+   bool m_streamNoise;
++  bool m_bAudio2;
+ };
+ 
+ }
+diff --git a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESound.cpp b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESound.cpp
+index e6aaf6a..6cd3657 100644
+--- a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESound.cpp
++++ b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAESound.cpp
+@@ -33,7 +33,7 @@ using namespace ActiveAE;
+ using namespace XFILE;
+ 
+ /* typecast AE to CActiveAE */
+-#define AE (*((CActiveAE*)CAEFactory::GetEngine()))
++#define AE (*((CActiveAE*)CAEFactory::GetEngine(m_bAudio2)))
+ 
+ CActiveAESound::CActiveAESound(const std::string &filename) :
+   IAESound         (filename),
+@@ -81,7 +81,7 @@ uint8_t** CActiveAESound::InitSound(bool orig, SampleConfig config, int nb_sampl
+     info = &m_dst_sound;
+ 
+   delete *info;
+-  *info = new CSoundPacket(config, nb_samples);
++  *info = new CSoundPacket(config, nb_samples, m_bAudio2);
+ 
+   (*info)->nb_samples = 0;
+   m_isConverted = false;
+diff --git a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEStream.cpp b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEStream.cpp
+index 246d7e6..147be20 100644
+--- a/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEStream.cpp
++++ b/xbmc/cores/AudioEngine/Engines/ActiveAE/ActiveAEStream.cpp
+@@ -32,7 +32,7 @@
+ using namespace ActiveAE;
+ 
+ /* typecast AE to CActiveAE */
+-#define AE (*((CActiveAE*)CAEFactory::GetEngine()))
++#define AE (*((CActiveAE*)CAEFactory::GetEngine(m_bAudio2)))
+ 
+ 
+ CActiveAEStream::CActiveAEStream(AEAudioFormat *format, unsigned int streamid)
+@@ -175,7 +175,7 @@ void CActiveAEStream::InitRemapper()
+                      false);
+ 
+     // extra sound packet, we can't resample to the same buffer
+-    m_remapBuffer = new CSoundPacket(m_inputBuffers->m_allSamples[0]->pkt->config, m_inputBuffers->m_allSamples[0]->pkt->max_nb_samples);
++    m_remapBuffer = new CSoundPacket(m_inputBuffers->m_allSamples[0]->pkt->config, m_inputBuffers->m_allSamples[0]->pkt->max_nb_samples, m_bAudio2);
+   }
+ }
+ 
+diff --git a/xbmc/cores/AudioEngine/Interfaces/AE.h b/xbmc/cores/AudioEngine/Interfaces/AE.h
+index 77458cb..631fc9f 100644
+--- a/xbmc/cores/AudioEngine/Interfaces/AE.h
++++ b/xbmc/cores/AudioEngine/Interfaces/AE.h
+@@ -73,7 +73,7 @@ class IAE
+ protected:
+   friend class CAEFactory;
+ 
+-  IAE() {}
++  IAE() { m_bAudio2 = false; m_bDisabled = false; }
+   virtual ~IAE() {}
+ 
+   /**
+@@ -144,6 +144,7 @@ public:
+    * @return The current mute state
+    */
+   virtual bool IsMuted() = 0;
++  virtual bool IsDumb() = 0;
+ 
+   /**
+    * Sets the sound mode
+@@ -198,6 +199,7 @@ public:
+    * @return the default audio device
+    */
+   virtual std::string GetDefaultDevice(bool passthrough) { return "default"; }
++  virtual std::string GetCreateDevice() { return ""; }
+ 
+   /**
+    * Returns true if the AudioEngine supports AE_FMT_RAW streams for use with formats such as IEC61937
+@@ -263,5 +265,14 @@ public:
+    * @return Returns true on success, else false.
+    */
+   virtual bool GetCurrentSinkFormat(AEAudioFormat &SinkFormat) { return false; }
++
++protected:
++  bool m_bAudio2;
++  bool m_bDisabled;
++
++public:
++  void SetAudio2(bool bAudio2){ m_bAudio2 = bAudio2; }
++  void SetDisabled(bool bDisabled){ m_bDisabled = bDisabled; }
++  bool IsDisabled(){ return m_bDisabled; }
+ };
+ 
+diff --git a/xbmc/cores/AudioEngine/Interfaces/AEEncoder.h b/xbmc/cores/AudioEngine/Interfaces/AEEncoder.h
+index 6f18ad2..dab30b9 100644
+--- a/xbmc/cores/AudioEngine/Interfaces/AEEncoder.h
++++ b/xbmc/cores/AudioEngine/Interfaces/AEEncoder.h
+@@ -34,7 +34,7 @@ public:
+   /**
+    * Constructor
+    */
+-  IAEEncoder() {};
++  IAEEncoder() { m_bAudio2 = false; };
+ 
+   /**
+    * Destructor
+@@ -102,5 +102,10 @@ public:
+    * @return the delay in seconds including any un-fetched encoded data
+    */
+   virtual double GetDelay(unsigned int bufferSize) = 0;
++
++  void SetAudio2(bool bAudio2){ m_bAudio2 = bAudio2; }
++
++  protected:
++	bool m_bAudio2;
+ };
+ 
+diff --git a/xbmc/cores/AudioEngine/Interfaces/AESound.h b/xbmc/cores/AudioEngine/Interfaces/AESound.h
+index 01853e0..0c24525 100644
+--- a/xbmc/cores/AudioEngine/Interfaces/AESound.h
++++ b/xbmc/cores/AudioEngine/Interfaces/AESound.h
+@@ -26,7 +26,8 @@ class IAESound
+ {
+ protected:
+   friend class IAE;
+-  IAESound(const std::string &filename) {}
++  bool m_bAudio2;
++  IAESound(const std::string &filename) { m_bAudio2 = false; }
+   virtual ~IAESound() {}
+ 
+ public:
+@@ -50,5 +51,8 @@ public:
+ 
+   /* get the current playback volume of this sound */
+   virtual float GetVolume() = 0;
++
++  void SetAudio2(bool bAudio2){ m_bAudio2 = bAudio2; }
++  bool IsAudio2(){ return m_bAudio2; }
+ };
+ 
+diff --git a/xbmc/cores/AudioEngine/Interfaces/AEStream.h b/xbmc/cores/AudioEngine/Interfaces/AEStream.h
+index 533f671..094ac4d 100644
+--- a/xbmc/cores/AudioEngine/Interfaces/AEStream.h
++++ b/xbmc/cores/AudioEngine/Interfaces/AEStream.h
+@@ -63,7 +63,8 @@ class IAEStream
+ {
+ protected:
+   friend class IAE;
+-  IAEStream() {}
++  bool m_bAudio2;
++  IAEStream() { m_bAudio2 = false; }
+   virtual ~IAEStream() {}
+ 
+ public:
+@@ -269,5 +270,9 @@ public:
+    * Indicates if dsp addon system is active.
+    */
+   virtual bool HasDSP() = 0;
++
++  void SetAudio2(bool bAudio2){ m_bAudio2 = bAudio2; }
++
++  bool IsAudio2(){ return m_bAudio2; }
+ };
+ 
+diff --git a/xbmc/cores/DataCacheCore.cpp b/xbmc/cores/DataCacheCore.cpp
+index 655163d..f8c4152 100644
+--- a/xbmc/cores/DataCacheCore.cpp
++++ b/xbmc/cores/DataCacheCore.cpp
+@@ -151,57 +151,117 @@ float CDataCacheCore::GetVideoDAR()
+ }
+ 
+ // player audio info
+-void CDataCacheCore::SetAudioDecoderName(std::string name)
++void CDataCacheCore::SetAudioDecoderName(std::string name, bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2PlayerSection);
++
++    m_playerAudio2Info.decoderName = name;
++    return;
++  }
++
+   CSingleLock lock(m_audioPlayerSection);
+ 
+   m_playerAudioInfo.decoderName = name;
+ }
+ 
+-std::string CDataCacheCore::GetAudioDecoderName()
++std::string CDataCacheCore::GetAudioDecoderName(bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2PlayerSection);
++		
++    return m_playerAudio2Info.decoderName;
++  }
++
+   CSingleLock lock(m_audioPlayerSection);
+ 
+   return m_playerAudioInfo.decoderName;
+ }
+ 
+-void CDataCacheCore::SetAudioChannels(std::string channels)
++void CDataCacheCore::SetAudioChannels(std::string channels, bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2PlayerSection);
++	
++    m_playerAudio2Info.channels = channels;
++    return;
++  }
++
+   CSingleLock lock(m_audioPlayerSection);
+ 
+   m_playerAudioInfo.channels = channels;
+ }
+ 
+-std::string CDataCacheCore::GetAudioChannels()
++std::string CDataCacheCore::GetAudioChannels(bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2PlayerSection);
++		
++    return m_playerAudio2Info.channels;
++  }
++
+   CSingleLock lock(m_audioPlayerSection);
+ 
+   return m_playerAudioInfo.channels;
+ }
+ 
+-void CDataCacheCore::SetAudioSampleRate(int sampleRate)
++void CDataCacheCore::SetAudioSampleRate(int sampleRate, bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2PlayerSection);
++	
++    m_playerAudio2Info.sampleRate = sampleRate;
++    return;
++  }
++
+   CSingleLock lock(m_audioPlayerSection);
+ 
+   m_playerAudioInfo.sampleRate = sampleRate;
+ }
+ 
+-int CDataCacheCore::GetAudioSampleRate()
++int CDataCacheCore::GetAudioSampleRate(bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2PlayerSection);
++		
++    return m_playerAudio2Info.sampleRate;
++  }
++
+   CSingleLock lock(m_audioPlayerSection);
+ 
+   return m_playerAudioInfo.sampleRate;
+ }
+ 
+-void CDataCacheCore::SetAudioBitsPerSample(int bitsPerSample)
++void CDataCacheCore::SetAudioBitsPerSample(int bitsPerSample, bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2PlayerSection);
++	
++    m_playerAudio2Info.bitsPerSample = bitsPerSample;
++    return;
++  }
++
+   CSingleLock lock(m_audioPlayerSection);
+ 
+   m_playerAudioInfo.bitsPerSample = bitsPerSample;
+ }
+ 
+-int CDataCacheCore::GetAudioBitsPerSample()
++int CDataCacheCore::GetAudioBitsPerSample(bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2PlayerSection);
++	  
++    return m_playerAudio2Info.bitsPerSample;
++  }
++
+   CSingleLock lock(m_audioPlayerSection);
+ 
+   return m_playerAudioInfo.bitsPerSample;
+diff --git a/xbmc/cores/DataCacheCore.h b/xbmc/cores/DataCacheCore.h
+index 3b08b90..6d59850 100644
+--- a/xbmc/cores/DataCacheCore.h
++++ b/xbmc/cores/DataCacheCore.h
+@@ -50,14 +50,14 @@ public:
+   float GetVideoDAR();
+ 
+   // player audio info
+-  void SetAudioDecoderName(std::string name);
+-  std::string GetAudioDecoderName();
+-  void SetAudioChannels(std::string channels);
+-  std::string GetAudioChannels();
+-  void SetAudioSampleRate(int sampleRate);
+-  int GetAudioSampleRate();
+-  void SetAudioBitsPerSample(int bitsPerSample);
+-  int GetAudioBitsPerSample();
++  void SetAudioDecoderName(std::string name, bool bAudio2 = false);
++  std::string GetAudioDecoderName(bool bAudio2 = false);
++  void SetAudioChannels(std::string channels, bool bAudio2 = false);
++  std::string GetAudioChannels(bool bAudio2 = false);
++  void SetAudioSampleRate(int sampleRate, bool bAudio2 = false);
++  int GetAudioSampleRate(bool bAudio2 = false);
++  void SetAudioBitsPerSample(int bitsPerSample, bool bAudio2 = false);
++  int GetAudioBitsPerSample(bool bAudio2 = false);
+ 
+   // render info
+   void SetRenderClockSync(bool enabled);
+@@ -83,14 +83,14 @@ protected:
+     float dar;
+   } m_playerVideoInfo;
+ 
+-  CCriticalSection m_audioPlayerSection;
++  CCriticalSection m_audioPlayerSection, m_audio2PlayerSection;
+   struct SPlayerAudioInfo
+   {
+     std::string decoderName;
+     std::string channels;
+     int sampleRate;
+     int bitsPerSample;
+-  } m_playerAudioInfo;
++  } m_playerAudioInfo, m_playerAudio2Info;
+ 
+   CCriticalSection m_renderSection;
+   struct SRenderInfo
+diff --git a/xbmc/cores/VideoPlayer/DVDAudio.cpp b/xbmc/cores/VideoPlayer/DVDAudio.cpp
+index 2dd9b36..21d0801 100644
+--- a/xbmc/cores/VideoPlayer/DVDAudio.cpp
++++ b/xbmc/cores/VideoPlayer/DVDAudio.cpp
+@@ -41,6 +41,7 @@ CDVDAudio::CDVDAudio(CDVDClock *clock) : m_pClock(clock)
+   m_timeOfPts = 0.0; //silence coverity uninitialized warning, is set elsewhere
+   m_syncError = 0.0;
+   m_syncErrorTime = 0;
++  m_bAudio2 = false;
+ }
+ 
+ CDVDAudio::~CDVDAudio()
+@@ -50,7 +51,7 @@ CDVDAudio::~CDVDAudio()
+     CAEFactory::FreeStream(m_pAudioStream);
+ }
+ 
+-bool CDVDAudio::Create(const DVDAudioFrame &audioframe, AVCodecID codec, bool needresampler)
++bool CDVDAudio::Create(const DVDAudioFrame &audioframe, AVCodecID codec, bool needresampler, bool bAudio2/* = false*/)
+ {
+   CLog::Log(LOGNOTICE,
+     "Creating audio stream (codec id: %i, channels: %i, sample rate: %i, %s)",
+@@ -69,7 +70,7 @@ bool CDVDAudio::Create(const DVDAudioFrame &audioframe, AVCodecID codec, bool ne
+   m_pAudioStream = CAEFactory::MakeStream(
+     format,
+     options,
+-    this
++    this, bAudio2
+   );
+   if (!m_pAudioStream)
+     return false;
+@@ -84,6 +85,7 @@ bool CDVDAudio::Create(const DVDAudioFrame &audioframe, AVCodecID codec, bool ne
+ 
+   SetDynamicRangeCompression((long)(CMediaSettings::GetInstance().GetCurrentVideoSettings().m_VolumeAmplification * 100));
+ 
++  m_bAudio2 = bAudio2;
+   return true;
+ }
+ 
+diff --git a/xbmc/cores/VideoPlayer/DVDAudio.h b/xbmc/cores/VideoPlayer/DVDAudio.h
+index 81882a1..8b11736 100644
+--- a/xbmc/cores/VideoPlayer/DVDAudio.h
++++ b/xbmc/cores/VideoPlayer/DVDAudio.h
+@@ -50,7 +50,7 @@ public:
+   float GetCurrentAttenuation();
+   void Pause();
+   void Resume();
+-  bool Create(const DVDAudioFrame &audioframe, AVCodecID codec, bool needresampler);
++  bool Create(const DVDAudioFrame &audioframe, AVCodecID codec, bool needresampler, bool bAudio2 = false);
+   bool IsValidFormat(const DVDAudioFrame &audioframe);
+   void Destroy();
+   unsigned int AddPackets(const DVDAudioFrame &audioframe);
+@@ -87,4 +87,6 @@ protected:
+ 
+   std::atomic_bool m_bAbort;
+   CDVDClock *m_pClock;
++
++  bool m_bAudio2;
+ };
+diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodec.h b/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodec.h
+index bb698da..8006e17 100644
+--- a/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodec.h
++++ b/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodec.h
+@@ -65,7 +65,7 @@ class CDVDAudioCodec
+ {
+ public:
+ 
+-  CDVDAudioCodec(CProcessInfo &processInfo) : m_processInfo(processInfo) {}
++  CDVDAudioCodec(CProcessInfo &processInfo) : m_processInfo(processInfo) { m_bAudio2 = false; }
+   virtual ~CDVDAudioCodec() {}
+ 
+   /*
+@@ -139,7 +139,10 @@ public:
+    * should return the ffmpeg profile value
+    */
+   virtual int GetProfile() { return 0; }
+-
++  
++  void SetAudio2(bool bAudio2){ m_bAudio2 = bAudio2; };
++  
+ protected:
+   CProcessInfo &m_processInfo;
++  bool m_bAudio2;
+ };
+diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodecFFmpeg.cpp b/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodecFFmpeg.cpp
+index f5880cc..aa74770 100644
+--- a/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodecFFmpeg.cpp
++++ b/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodecFFmpeg.cpp
+@@ -126,7 +126,7 @@ bool CDVDAudioCodecFFmpeg::Open(CDVDStreamInfo &hints, CDVDCodecOptions &options
+   m_iSampleFormat = AV_SAMPLE_FMT_NONE;
+   m_matrixEncoding = AV_MATRIX_ENCODING_NONE;
+ 
+-  m_processInfo.SetAudioDecoderName(m_pCodecContext->codec->name);
++  m_processInfo.SetAudioDecoderName(m_pCodecContext->codec->name, m_bAudio2);
+   return true;
+ }
+ 
+diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodecPassthrough.cpp b/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodecPassthrough.cpp
+index 1e42d50..bcbae5a 100644
+--- a/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodecPassthrough.cpp
++++ b/xbmc/cores/VideoPlayer/DVDCodecs/Audio/DVDAudioCodecPassthrough.cpp
+@@ -56,44 +56,44 @@ bool CDVDAudioCodecPassthrough::Open(CDVDStreamInfo &hints, CDVDCodecOptions &op
+     case AV_CODEC_ID_AC3:
+       format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_AC3;
+       format.m_streamInfo.m_sampleRate = hints.samplerate;
+-      m_processInfo.SetAudioDecoderName("PT_AC3");
++      m_processInfo.SetAudioDecoderName("PT_AC3", m_bAudio2);
+       break;
+ 
+     case AV_CODEC_ID_EAC3:
+       format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_EAC3;
+       format.m_streamInfo.m_sampleRate = hints.samplerate;
+-      m_processInfo.SetAudioDecoderName("PT_EAC3");
++      m_processInfo.SetAudioDecoderName("PT_EAC3", m_bAudio2);
+       break;
+ 
+     case AV_CODEC_ID_DTS:
+       format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_DTSHD;
+       format.m_streamInfo.m_sampleRate = hints.samplerate;
+-      m_processInfo.SetAudioDecoderName("PT_DTSHD");
++      m_processInfo.SetAudioDecoderName("PT_DTSHD", m_bAudio2);
+       break;
+ 
+     case AV_CODEC_ID_TRUEHD:
+       format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_TRUEHD;
+       format.m_streamInfo.m_sampleRate = hints.samplerate;
+       m_trueHDBuffer.reset(new uint8_t[TRUEHD_BUF_SIZE]);
+-      m_processInfo.SetAudioDecoderName("PT_TRUEHD");
++      m_processInfo.SetAudioDecoderName("PT_TRUEHD", m_bAudio2);
+       break;
+ 
+     default:
+       format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_NULL;
+   }
+ 
+-  bool ret = CAEFactory::SupportsRaw(format);
++  bool ret = CAEFactory::SupportsRaw(format, m_bAudio2);
+ 
+   m_parser.SetCoreOnly(false);
+   if (!ret && hints.codec == AV_CODEC_ID_DTS)
+   {
+     format.m_streamInfo.m_type = CAEStreamInfo::STREAM_TYPE_DTSHD_CORE;
+-    ret = CAEFactory::SupportsRaw(format);
++    ret = CAEFactory::SupportsRaw(format, m_bAudio2);
+ 
+     // only get the dts core from the parser if we don't support dtsHD
+     m_parser.SetCoreOnly(true);
+ 
+-    m_processInfo.SetAudioDecoderName("PT_DTS");
++    m_processInfo.SetAudioDecoderName("PT_DTS", m_bAudio2);
+   }
+ 
+   m_dataSize = 0;
+diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.cpp b/xbmc/cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.cpp
+index 9717412..1649717 100644
+--- a/xbmc/cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.cpp
++++ b/xbmc/cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.cpp
+@@ -76,11 +76,12 @@ CDVDVideoCodec* CDVDFactoryCodec::OpenCodec(CDVDVideoCodec* pCodec, CDVDStreamIn
+   return nullptr;
+ }
+ 
+-CDVDAudioCodec* CDVDFactoryCodec::OpenCodec(CDVDAudioCodec* pCodec, CDVDStreamInfo &hints, CDVDCodecOptions &options )
++CDVDAudioCodec* CDVDFactoryCodec::OpenCodec(CDVDAudioCodec* pCodec, CDVDStreamInfo &hints, CDVDCodecOptions &options, bool bAudio2 /* = false */ )
+ {
+   try
+   {
+     CLog::Log(LOGDEBUG, "FactoryCodec - Audio: %s - Opening", pCodec->GetName());
++    pCodec->SetAudio2(bAudio2);
+     if( pCodec->Open( hints, options ) )
+     {
+       CLog::Log(LOGDEBUG, "FactoryCodec - Audio: %s - Opened", pCodec->GetName());
+@@ -173,7 +174,7 @@ CDVDVideoCodec* CDVDFactoryCodec::CreateVideoCodec(CDVDStreamInfo &hint, CProces
+   return nullptr;;
+ }
+ 
+-CDVDAudioCodec* CDVDFactoryCodec::CreateAudioCodec(CDVDStreamInfo &hint, CProcessInfo &processInfo, bool allowpassthrough, bool allowdtshddecode)
++CDVDAudioCodec* CDVDFactoryCodec::CreateAudioCodec(CDVDStreamInfo &hint, CProcessInfo &processInfo, bool allowpassthrough, bool allowdtshddecode, bool bAudio2)
+ {
+   CDVDAudioCodec* pCodec = NULL;
+   CDVDCodecOptions options;
+@@ -184,12 +185,12 @@ CDVDAudioCodec* CDVDFactoryCodec::CreateAudioCodec(CDVDStreamInfo &hint, CProces
+   // we don't use passthrough if "sync playback to display" is enabled
+   if (allowpassthrough)
+   {
+-    pCodec = OpenCodec(new CDVDAudioCodecPassthrough(processInfo), hint, options);
++    pCodec = OpenCodec(new CDVDAudioCodecPassthrough(processInfo), hint, options, bAudio2);
+     if (pCodec)
+       return pCodec;
+   }
+ 
+-  pCodec = OpenCodec(new CDVDAudioCodecFFmpeg(processInfo), hint, options);
++  pCodec = OpenCodec(new CDVDAudioCodecFFmpeg(processInfo), hint, options, bAudio2);
+   if (pCodec)
+     return pCodec;
+ 
+diff --git a/xbmc/cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.h b/xbmc/cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.h
+index d11c700..b67de14 100644
+--- a/xbmc/cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.h
++++ b/xbmc/cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.h
+@@ -42,10 +42,10 @@ public:
+                                           CProcessInfo &processInfo,
+                                           const CRenderInfo &info = CRenderInfo());
+   static CDVDAudioCodec* CreateAudioCodec(CDVDStreamInfo &hint, CProcessInfo &processInfo,
+-                                          bool allowpassthrough = true, bool allowdtshddecode = true);
++                                          bool allowpassthrough = true, bool allowdtshddecode = true, bool bAudio2 = false);
+   static CDVDOverlayCodec* CreateOverlayCodec(CDVDStreamInfo &hint );
+ 
+-  static CDVDAudioCodec* OpenCodec(CDVDAudioCodec* pCodec, CDVDStreamInfo &hint, CDVDCodecOptions &options );
++  static CDVDAudioCodec* OpenCodec(CDVDAudioCodec* pCodec, CDVDStreamInfo &hint, CDVDCodecOptions &options, bool bAudio2 = false );
+   static CDVDVideoCodec* OpenCodec(CDVDVideoCodec* pCodec, CDVDStreamInfo &hint, CDVDCodecOptions &options );
+   static CDVDOverlayCodec* OpenCodec(CDVDOverlayCodec* pCodec, CDVDStreamInfo &hint, CDVDCodecOptions &options );
+ };
+diff --git a/xbmc/cores/VideoPlayer/Process/ProcessInfo.cpp b/xbmc/cores/VideoPlayer/Process/ProcessInfo.cpp
+index 971b590..1de21cf 100644
+--- a/xbmc/cores/VideoPlayer/Process/ProcessInfo.cpp
++++ b/xbmc/cores/VideoPlayer/Process/ProcessInfo.cpp
+@@ -238,6 +238,7 @@ EINTERLACEMETHOD CProcessInfo::GetDeinterlacingMethodDefault()
+ // player audio info
+ void CProcessInfo::ResetAudioCodecInfo()
+ {
++ {
+   CSingleLock lock(m_audioCodecSection);
+ 
+   m_audioDecoderName = "unknown";
+@@ -249,10 +250,34 @@ void CProcessInfo::ResetAudioCodecInfo()
+   CServiceBroker::GetDataCacheCore().SetAudioChannels(m_audioChannels);
+   CServiceBroker::GetDataCacheCore().SetAudioSampleRate(m_audioSampleRate);
+   CServiceBroker::GetDataCacheCore().SetAudioBitsPerSample(m_audioBitsPerSample);
++ }
++ {
++  CSingleLock lock(m_audio2CodecSection);
++
++  m_audio2DecoderName = "unknown";
++  m_audio2Channels = "unknown";
++  m_audio2SampleRate = 0;;
++  m_audio2BitsPerSample = 0;
++
++  CServiceBroker::GetDataCacheCore().SetAudioDecoderName(m_audio2DecoderName, true);
++  CServiceBroker::GetDataCacheCore().SetAudioChannels(m_audio2Channels, true);
++  CServiceBroker::GetDataCacheCore().SetAudioSampleRate(m_audio2SampleRate, true);
++  CServiceBroker::GetDataCacheCore().SetAudioBitsPerSample(m_audio2BitsPerSample, true);
++ }
+ }
+ 
+-void CProcessInfo::SetAudioDecoderName(std::string name)
++void CProcessInfo::SetAudioDecoderName(std::string name, bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2CodecSection);
++	  
++    m_audio2DecoderName = name;
++	  
++    CServiceBroker::GetDataCacheCore().SetAudioDecoderName(m_audio2DecoderName, true);
++    return;
++  }
++
+   CSingleLock lock(m_audioCodecSection);
+ 
+   m_audioDecoderName = name;
+@@ -260,15 +285,32 @@ void CProcessInfo::SetAudioDecoderName(std::string name)
+   CServiceBroker::GetDataCacheCore().SetAudioDecoderName(m_audioDecoderName);
+ }
+ 
+-std::string CProcessInfo::GetAudioDecoderName()
++std::string CProcessInfo::GetAudioDecoderName(bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2CodecSection);
++	  
++    return m_audio2DecoderName;
++  }
++
+   CSingleLock lock(m_audioCodecSection);
+ 
+   return m_audioDecoderName;
+ }
+ 
+-void CProcessInfo::SetAudioChannels(std::string channels)
++void CProcessInfo::SetAudioChannels(std::string channels, bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2CodecSection);
++	  
++    m_audio2Channels = channels;
++	  
++    CServiceBroker::GetDataCacheCore().SetAudioChannels(m_audio2Channels, true);
++    return;
++  }
++
+   CSingleLock lock(m_audioCodecSection);
+ 
+   m_audioChannels = channels;
+@@ -276,15 +318,32 @@ void CProcessInfo::SetAudioChannels(std::string channels)
+   CServiceBroker::GetDataCacheCore().SetAudioChannels(m_audioChannels);
+ }
+ 
+-std::string CProcessInfo::GetAudioChannels()
++std::string CProcessInfo::GetAudioChannels(bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2CodecSection);
++	  
++    return m_audio2Channels;
++  }
++
+   CSingleLock lock(m_audioCodecSection);
+ 
+   return m_audioChannels;
+ }
+ 
+-void CProcessInfo::SetAudioSampleRate(int sampleRate)
++void CProcessInfo::SetAudioSampleRate(int sampleRate, bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2CodecSection);
++	  
++    m_audio2SampleRate = sampleRate;
++	  
++    CServiceBroker::GetDataCacheCore().SetAudioSampleRate(m_audio2SampleRate, true);
++    return;
++  }
++
+   CSingleLock lock(m_audioCodecSection);
+ 
+   m_audioSampleRate = sampleRate;
+@@ -292,15 +351,32 @@ void CProcessInfo::SetAudioSampleRate(int sampleRate)
+   CServiceBroker::GetDataCacheCore().SetAudioSampleRate(m_audioSampleRate);
+ }
+ 
+-int CProcessInfo::GetAudioSampleRate()
++int CProcessInfo::GetAudioSampleRate(bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2CodecSection);
++	  
++    return m_audio2SampleRate;
++  }
++
+   CSingleLock lock(m_audioCodecSection);
+ 
+   return m_audioSampleRate;
+ }
+ 
+-void CProcessInfo::SetAudioBitsPerSample(int bitsPerSample)
++void CProcessInfo::SetAudioBitsPerSample(int bitsPerSample, bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2CodecSection);
++	  
++    m_audio2BitsPerSample = bitsPerSample;
++	  
++    CServiceBroker::GetDataCacheCore().SetAudioBitsPerSample(m_audio2BitsPerSample, true);
++    return;
++  }
++
+   CSingleLock lock(m_audioCodecSection);
+ 
+   m_audioBitsPerSample = bitsPerSample;
+@@ -308,8 +384,15 @@ void CProcessInfo::SetAudioBitsPerSample(int bitsPerSample)
+   CServiceBroker::GetDataCacheCore().SetAudioBitsPerSample(m_audioBitsPerSample);
+ }
+ 
+-int CProcessInfo::GetAudioBitsPerSample()
++int CProcessInfo::GetAudioBitsPerSample(bool bAudio2)
+ {
++  if (bAudio2)
++  {
++    CSingleLock lock(m_audio2CodecSection);
++	  
++    return m_audio2BitsPerSample;
++  }
++
+   CSingleLock lock(m_audioCodecSection);
+ 
+   return m_audioBitsPerSample;
+diff --git a/xbmc/cores/VideoPlayer/Process/ProcessInfo.h b/xbmc/cores/VideoPlayer/Process/ProcessInfo.h
+index 14267c4..e2c7024 100644
+--- a/xbmc/cores/VideoPlayer/Process/ProcessInfo.h
++++ b/xbmc/cores/VideoPlayer/Process/ProcessInfo.h
+@@ -55,14 +55,14 @@ public:
+ 
+   // player audio info
+   void ResetAudioCodecInfo();
+-  void SetAudioDecoderName(std::string name);
+-  std::string GetAudioDecoderName();
+-  void SetAudioChannels(std::string channels);
+-  std::string GetAudioChannels();
+-  void SetAudioSampleRate(int sampleRate);
+-  int GetAudioSampleRate();
+-  void SetAudioBitsPerSample(int bitsPerSample);
+-  int GetAudioBitsPerSample();
++  void SetAudioDecoderName(std::string name, bool bAudio2 = false);
++  std::string GetAudioDecoderName(bool bAudio2 = false);
++  void SetAudioChannels(std::string channels, bool bAudio2 = false);
++  std::string GetAudioChannels(bool bAudio2 = false);
++  void SetAudioSampleRate(int sampleRate, bool bAudio2 = false);
++  int GetAudioSampleRate(bool bAudio2 = false);
++  void SetAudioBitsPerSample(int bitsPerSample, bool bAudio2 = false);
++  int GetAudioBitsPerSample(bool bAudio2 = false);
+   virtual bool AllowDTSHDDecode();
+ 
+   // render info
+@@ -99,6 +99,12 @@ protected:
+   int m_audioBitsPerSample;
+   CCriticalSection m_audioCodecSection;
+ 
++  std::string m_audio2DecoderName;
++  std::string m_audio2Channels;
++  int m_audio2SampleRate;
++  int m_audio2BitsPerSample;
++  CCriticalSection m_audio2CodecSection;
++
+   // render info
+   CCriticalSection m_renderSection;
+   bool m_isClockSync;
+--- a/xbmc/cores/VideoPlayer/VideoPlayerAudio.cpp	2017-10-25 12:37:11.000000000 +0200
++++ b/xbmc/cores/VideoPlayer/VideoPlayerAudio.cpp	2017-11-12 20:49:00.000000000 +0100
+@@ -42,28 +42,119 @@
+ class CDVDMsgAudioCodecChange : public CDVDMsg
+ {
+ public:
+-  CDVDMsgAudioCodecChange(const CDVDStreamInfo &hints, CDVDAudioCodec* codec)
++  CDVDMsgAudioCodecChange(const CDVDStreamInfo &hints, CDVDAudioCodec* codec, CDVDAudioCodec* codec2)
+     : CDVDMsg(GENERAL_STREAMCHANGE)
+     , m_codec(codec)
++    , m_codec2(codec2)
+     , m_hints(hints)
+   {}
+  ~CDVDMsgAudioCodecChange()
+   {
+-    delete m_codec;
++    if (m_codec)
++      delete m_codec;
++    if (m_codec2)
++      delete m_codec2;
+   }
+   CDVDAudioCodec* m_codec;
++  CDVDAudioCodec* m_codec2;
+   CDVDStreamInfo  m_hints;
+ };
+ 
++CAudio2Frames::CAudio2Frames()
++{
++  pcap = sizeof(data)/sizeof(uint8_t*);
++  incr = 64*1024;
++  for (int i=0; i < (int)pcap; i++)
++  {
++    data[i] = NULL;
++    capa[i] = 0;
++    size[i] = 0;
++  }
++  plns = 0;
++}
++
++CAudio2Frames::~CAudio2Frames()
++{
++  for (int i=0; i < (int)pcap; i++)
++  {
++    if(data[i]) free(data[i]);
++  }
++}
++
++void CAudio2Frames::Add(DVDAudioFrame af)
++{
++  if(!af.data[0] || !af.nb_frames || !af.planes)
++    return;
++
++  if(plns == 0)
++  {
++	plns = af.planes < pcap ? af.planes : pcap;
++  }
++
++  int af_size = af.nb_frames * af.framesize / af.planes;
++  for (int i=0; i < (int)af.planes; i++)
++  {
++    if(size[i] + af_size > capa[i])
++    {
++      capa[i] = ((size[i] + af_size) / incr + 1) * incr;
++      data[i] = (uint8_t*)realloc(data[i], capa[i]);
++    }
++    if(af.data[i])
++    {
++      memcpy(data[i]+size[i], af.data[i], af_size);
++    }
++    else
++    {
++      memset(data[i]+size[i], 0, af_size);
++    }
++    af.data[i] = data[i] + size[i];
++    size[i] += af_size;
++  }
++  afs.push_back(af);
++}
++
++bool CAudio2Frames::Merge(DVDAudioFrame& af)
++{
++  if (!afs.size())
++    return false;
++  af = afs.front();
++  for (int i=0; i < (int)plns; i++)
++  {
++    af.data[i] = data[i];
++  }
++  af.duration = 0;
++  af.nb_frames = 0;
++  for (std::list<DVDAudioFrame>::iterator it = afs.begin(); it != afs.end(); ++it)
++  {
++    af.duration += it->duration;
++    af.nb_frames += it->nb_frames;
++  }
++  return true;
++}
++
++void CAudio2Frames::Clear()
++{
++  afs.clear();
++  for (int i=0; i < (int)pcap; i++)
++  {
++    size[i] = 0;
++  }
++  plns = 0;
++}
+ 
+ CVideoPlayerAudio::CVideoPlayerAudio(CDVDClock* pClock, CDVDMessageQueue& parent, CProcessInfo &processInfo)
+ : CThread("VideoPlayerAudio"), IDVDStreamPlayerAudio(processInfo)
+ , m_messageQueue("audio")
+ , m_messageParent(parent)
+ , m_dvdAudio(pClock)
++, m_dvdAudio2(pClock)
+ {
+   m_pClock = pClock;
+   m_pAudioCodec = NULL;
++  m_pAudioCodec2 = NULL;
++  m_bAudio2 = false;
++  m_bAudio2Skip = false;
++  m_bAudio2Dumb = false;
+   m_audioClock = 0;
+   m_speed = DVD_PLAYSPEED_NORMAL;
+   m_stalled = true;
+@@ -74,7 +165,6 @@
+   m_prevsynctype = -1;
+   m_prevskipped = false;
+   m_maxspeedadjust = 0.0;
+-
+   m_messageQueue.SetMaxDataSize(6 * 1024 * 1024);
+   m_messageQueue.SetMaxTimeSize(8.0);
+ }
+@@ -89,6 +179,7 @@
+ 
+ bool CVideoPlayerAudio::OpenStream(CDVDStreamInfo &hints)
+ {
++  m_bAudio2 = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_ENABLED) ? true : false;
+   m_processInfo.ResetAudioCodecInfo();
+ 
+   CLog::Log(LOGNOTICE, "Finding audio codec for: %i", hints.codec);
+@@ -101,12 +192,23 @@
+     CLog::Log(LOGERROR, "Unsupported audio codec");
+     return false;
+   }
++  CDVDAudioCodec* codec2 = NULL;
++  if (m_bAudio2)
++  {
++    codec2 = CDVDFactoryCodec::CreateAudioCodec(hints, m_processInfo, allowpassthrough, m_processInfo.AllowDTSHDDecode(), m_bAudio2);
++    if( !codec2 )
++    {
++      CLog::Log(LOGERROR, "Unsupported 2nd audio codec");
++      m_dvdAudio2.Destroy();
++      m_bAudio2 = false;
++    }
++  }
+ 
+   if(m_messageQueue.IsInited())
+-    m_messageQueue.Put(new CDVDMsgAudioCodecChange(hints, codec), 0);
++    m_messageQueue.Put(new CDVDMsgAudioCodecChange(hints, codec, codec2), 0);
+   else
+   {
+-    OpenStream(hints, codec);
++    OpenStream(hints, codec, codec2);
+     m_messageQueue.Init();
+     CLog::Log(LOGNOTICE, "Creating audio thread");
+     Create();
+@@ -114,11 +216,14 @@
+   return true;
+ }
+ 
+-void CVideoPlayerAudio::OpenStream(CDVDStreamInfo &hints, CDVDAudioCodec* codec)
++void CVideoPlayerAudio::OpenStream(CDVDStreamInfo &hints, CDVDAudioCodec* codec, CDVDAudioCodec* codec2)
+ {
+-  SAFE_DELETE(m_pAudioCodec);
++  if (m_pAudioCodec)
++    SAFE_DELETE(m_pAudioCodec);
+   m_pAudioCodec = codec;
+-
++  if (m_pAudioCodec2)
++    SAFE_DELETE(m_pAudioCodec2);
++  m_pAudioCodec2 = codec2;
+   /* store our stream hints */
+   m_streaminfo = hints;
+ 
+@@ -178,14 +283,20 @@
+   {
+     m_bStop = false;
+     m_dvdAudio.Drain();
++    if (m_bAudio2)
++      m_dvdAudio2.Drain();
+     m_bStop = true;
+   }
+   else
+   {
+     m_dvdAudio.Flush();
++    if (m_bAudio2)
++      m_dvdAudio2.Flush();
+   }
+ 
+   m_dvdAudio.Destroy();
++  if (m_bAudio2)
++    m_dvdAudio2.Destroy();
+ 
+   // uninit queue
+   m_messageQueue.End();
+@@ -197,6 +308,14 @@
+     delete m_pAudioCodec;
+     m_pAudioCodec = NULL;
+   }
++  if (m_pAudioCodec2)
++  {
++    m_pAudioCodec2->Dispose();
++    delete m_pAudioCodec2;
++    m_pAudioCodec2 = NULL;
++  }
++
++  m_bAudio2 = false;
+ }
+ 
+ void CVideoPlayerAudio::OnStartup()
+@@ -214,12 +333,15 @@
+   if (m_synctype == SYNC_RESAMPLE)
+     s << ", rr:" << std::fixed << std::setprecision(5) << 1.0 / m_dvdAudio.GetResampleRatio();
+ 
++  if (m_bAudio2)
++    s << ", a1/a2:" << std::fixed << std::setprecision(3) << m_audiodiff;
++
+   s << ", att:" << std::fixed << std::setprecision(1) << log(GetCurrentAttenuation()) * 20.0f << " dB";
+ 
+   SInfo info;
+   info.info        = s.str();
+   info.pts         = m_dvdAudio.GetPlayingPts();
+-  info.passthrough = m_pAudioCodec && m_pAudioCodec->NeedPassthrough();
++  info.passthrough = m_pAudioCodec && m_pAudioCodec->NeedPassthrough() && (!m_bAudio2 || (m_pAudioCodec2 && m_pAudioCodec2->NeedPassthrough()));
+ 
+   { CSingleLock lock(m_info_section);
+     m_info = info;
+@@ -231,7 +353,10 @@
+   CLog::Log(LOGNOTICE, "running thread: CVideoPlayerAudio::Process()");
+ 
+   DVDAudioFrame audioframe;
++  DVDAudioFrame audioframe2;
+   m_audioStats.Start();
++  m_audiodiff = 0.0;
++  m_bAudio2Skip = false;
+ 
+   while (!m_bStop)
+   {
+@@ -292,7 +417,11 @@
+ 
+       m_audioClock = pts + m_dvdAudio.GetDelay();
+       if (m_speed != DVD_PLAYSPEED_PAUSE)
++      {
+         m_dvdAudio.Resume();
++        if (m_bAudio2)
++          m_dvdAudio2.Resume();
++      }
+       m_syncState = IDVDStreamPlayer::SYNC_INSYNC;
+       m_syncTimer.Set(3000);
+     }
+@@ -300,7 +429,11 @@
+     {
+       if (m_pAudioCodec)
+         m_pAudioCodec->Reset();
++      if (m_pAudioCodec2)
++        m_pAudioCodec2->Reset();
+       m_dvdAudio.Flush();
++      if (m_bAudio2)
++        m_dvdAudio2.Flush();
+       m_stalled = true;
+       m_audioClock = 0;
+       m_syncState = IDVDStreamPlayer::SYNC_STARTING;
+@@ -309,6 +442,8 @@
+     {
+       bool sync = static_cast<CDVDMsgBool*>(pMsg)->m_value;
+       m_dvdAudio.Flush();
++      if (m_bAudio2)
++        m_dvdAudio2.Flush();
+       m_stalled = true;
+       m_audioClock = 0;
+ 
+@@ -316,10 +451,14 @@
+       {
+         m_syncState = IDVDStreamPlayer::SYNC_STARTING;
+         m_dvdAudio.Pause();
++        if (m_bAudio2)
++          m_dvdAudio2.Pause();
+       }
+ 
+       if (m_pAudioCodec)
+         m_pAudioCodec->Reset();
++      if (m_pAudioCodec2)
++        m_pAudioCodec2->Reset();
+     }
+     else if (pMsg->IsType(CDVDMsg::GENERAL_EOF))
+     {
+@@ -334,20 +473,26 @@
+         if (speed != m_speed)
+         {
+           if (m_syncState == IDVDStreamPlayer::SYNC_INSYNC)
++          {
+             m_dvdAudio.Resume();
++            if (m_bAudio2)
++              m_dvdAudio2.Resume();
++          }
+         }
+       }
+       else
+       {
+         m_dvdAudio.Pause();
++        if (m_bAudio2)
++          m_dvdAudio2.Pause();
+       }
+       m_speed = speed;
+     }
+     else if (pMsg->IsType(CDVDMsg::GENERAL_STREAMCHANGE))
+     {
+       CDVDMsgAudioCodecChange* msg(static_cast<CDVDMsgAudioCodecChange*>(pMsg));
+-      OpenStream(msg->m_hints, msg->m_codec);
+-      msg->m_codec = NULL;
++      OpenStream(msg->m_hints, msg->m_codec, msg->m_codec2);
++      msg->m_codec2 = NULL;
+     }
+     else if (pMsg->IsType(CDVDMsg::GENERAL_PAUSE))
+     {
+@@ -360,10 +505,14 @@
+       bool bPacketDrop  = ((CDVDMsgDemuxerPacket*)pMsg)->GetPacketDrop();
+ 
+       int consumed = m_pAudioCodec->Decode(pPacket->pData, pPacket->iSize, pPacket->dts, pPacket->pts);
++      if (m_bAudio2)
++        m_pAudioCodec2->Decode(pPacket->pData, pPacket->iSize, pPacket->dts, pPacket->pts);
+       if (consumed < 0)
+       {
+         CLog::Log(LOGERROR, "CVideoPlayerAudio::DecodeFrame - Decode Error. Skipping audio packet (%d)", consumed);
+         m_pAudioCodec->Reset();
++        if (m_bAudio2)
++          m_pAudioCodec2->Reset();
+         pMsg->Release();
+         continue;
+       }
+@@ -371,21 +520,43 @@
+       m_audioStats.AddSampleBytes(pPacket->iSize);
+       UpdatePlayerInfo();
+ 
++      // make sure the sent frame is clean
++      audioframe.nb_frames = 0;
++      audioframe2.nb_frames = 0;
++      m_audio2frames.Clear();
++
+       // loop while no error and decoder produces output
+       while (!m_bStop)
+       {
+         // get decoded data and the size of it
+         m_pAudioCodec->GetData(audioframe);
++        if (audioframe.format.m_dataFormat == AE_FMT_RAW )
++          audioframe.framesize = audioframe.format.m_frameSize;
++
++        if (m_bAudio2)
++        {
++          m_pAudioCodec2->GetData(audioframe2);
++          if (audioframe2.nb_frames > 0)
++          {
++            if (audioframe2.format.m_dataFormat == AE_FMT_RAW )
++              audioframe2.framesize = audioframe2.format.m_frameSize;
++            m_audio2frames.Add(audioframe2);
++          }
++        }
+ 
+         if (audioframe.nb_frames == 0)
+         {
+           if (consumed >= pPacket->iSize)
+             break;
+           int ret = m_pAudioCodec->Decode(pPacket->pData+consumed, pPacket->iSize-consumed, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE);
++          if (m_bAudio2)
++            m_pAudioCodec2->Decode(pPacket->pData+consumed, pPacket->iSize-consumed, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE);
+           if (ret < 0)
+           {
+             CLog::Log(LOGERROR, "CVideoPlayerAudio::DecodeFrame - Decode Error. Skipping audio packet (%d)", ret);
+             m_pAudioCodec->Reset();
++            if (m_bAudio2)
++              m_pAudioCodec2->Reset();
+             break;
+           }
+           consumed += ret;
+@@ -403,6 +574,20 @@
+           m_audioClock = audioframe.pts;
+         }
+ 
++        if (m_bAudio2)
++        {
++          m_audio2frames.Merge(audioframe2);
++
++          if (audioframe2.nb_frames > 0)
++          {
++            if (audioframe2.pts == DVD_NOPTS_VALUE)
++            {
++              audioframe2.pts = m_audioClock;
++              audioframe2.hasTimestamp = false;
++            }
++          }
++        }
++
+         //Drop when not playing normally
+         if (!ALLOW_AUDIO(m_speed) && m_syncState == IDVDStreamPlayer::SYNC_INSYNC)
+         {
+@@ -449,15 +634,48 @@
+           m_messageParent.Put(new CDVDMsg(CDVDMsg::PLAYER_AVCHANGE));
+         }
+ 
++        if (m_bAudio2 && audioframe2.nb_frames > 0 && !m_dvdAudio2.IsValidFormat(audioframe2))
++        {
++          if(m_speed)
++            m_dvdAudio2.Drain();
++
++          m_dvdAudio2.Destroy();
++
++          if(!m_dvdAudio2.Create(audioframe2, m_streaminfo.codec, m_setsynctype == SYNC_RESAMPLE, m_bAudio2))
++            CLog::Log(LOGERROR, "%s - failed to create 2nd audio renderer", __FUNCTION__);
++
++          if (m_syncState == IDVDStreamPlayer::SYNC_INSYNC)
++            m_dvdAudio2.Resume();
++        }
++        if (m_bAudio2)
++          m_bAudio2Dumb = CAEFactory::IsDumb(true);
++
++         // Zero out the frame data if we are supposed to silence the audio
++         if (m_silence)
++         {
++           int size = audioframe.nb_frames * audioframe.framesize / audioframe.planes;
++           for (unsigned int i=0; i<audioframe.planes; i++)
++             memset(audioframe.data[i], 0, size);
++          if (m_bAudio2 )
++          {
++            int size2 = audioframe2.nb_frames * audioframe2.framesize / audioframe2.planes;
++            for (unsigned int i=0; i<audioframe2.planes; i++)
++              memset(audioframe2.data[i], 0, size2);
++          }
++         }
++
+         SetSyncType(audioframe.passthrough);
+ 
+         if (!bPacketDrop)
+         {
+-          OutputPacket(audioframe);
++          OutputPacket(audioframe, audioframe2);
+ 
+           // signal to our parent that we have initialized
+           if(m_syncState == IDVDStreamPlayer::SYNC_STARTING)
+           {
++            if (m_bAudio2)
++              HandleSyncAudio2(audioframe2);
++
+             double cachetotal = DVD_SEC_TO_TIME(m_dvdAudio.GetCacheTotal());
+             double cachetime = m_dvdAudio.GetDelay();
+             if (cachetime >= cachetotal * 0.5)
+@@ -487,10 +705,14 @@
+         m_audioClock += audioframe.duration;
+ 
+         int ret = m_pAudioCodec->Decode(nullptr, 0, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE);
++        if (m_bAudio2)
++          m_pAudioCodec2->Decode(nullptr, 0, DVD_NOPTS_VALUE, DVD_NOPTS_VALUE);
+         if (ret < 0)
+         {
+           CLog::Log(LOGERROR, "CVideoPlayerAudio::DecodeFrame - Decode Error. Skipping audio packet (%d)", ret);
+           m_pAudioCodec->Reset();
++          if (m_bAudio2)
++            m_pAudioCodec2->Reset();
+           break;
+         }
+       } // while decoder produces output
+@@ -528,9 +750,47 @@
+   }
+ }
+ 
+-bool CVideoPlayerAudio::OutputPacket(DVDAudioFrame &audioframe)
++void CVideoPlayerAudio::HandleSyncAudio2(DVDAudioFrame &audioframe2)
++ {
++  if(m_bAudio2Dumb)
++  {
++    m_audiodiff = 0.0;
++	return;
++  }
++  if(audioframe2.nb_frames == 0 || audioframe2.planes == 0)
++    return;
++
++  double threshold = 50000.0;
++  threshold = threshold > audioframe2.duration ? threshold : audioframe2.duration;
++
++  double dtm1 = m_dvdAudio.GetDelay();
++  double dtm2 = m_dvdAudio2.GetDelay();
++  double ddiff = (dtm1 - dtm2);
++
++  m_audiodiff = ddiff / DVD_TIME_BASE;
++
++  if (ddiff > threshold)
++  {
++    int size2 = audioframe2.nb_frames * audioframe2.framesize / audioframe2.planes;
++    for (unsigned int i=0; i<audioframe2.planes; i++)
++      memset(audioframe2.data[i], 0, size2);
++    m_dvdAudio2.AddPackets(audioframe2);
++  }
++
++  if (ddiff < -threshold)
++  {
++    m_bAudio2Skip = true;
++  }
++  else if (m_bAudio2Skip && ddiff > 0.0)
++  {
++    m_bAudio2Skip = false;
++  }
++}
++
++bool CVideoPlayerAudio::OutputPacket(DVDAudioFrame &audioframe, DVDAudioFrame &audioframe2)
+ {
+-  double syncerror = m_dvdAudio.GetSyncError();
++  bool bAddAudio2 = (m_bAudio2 && !m_bAudio2Dumb && !m_bAudio2Skip && audioframe2.nb_frames > 0);
++   double syncerror = m_dvdAudio.GetSyncError();
+ 
+   if (m_synctype == SYNC_DISCON && fabs(syncerror) > DVD_MSEC_TO_TIME(10))
+   {
+@@ -541,6 +801,8 @@
+     }
+   }
+   m_dvdAudio.AddPackets(audioframe);
++  if (bAddAudio2)
++    m_dvdAudio2.AddPackets(audioframe2);
+ 
+   return true;
+ }
+@@ -582,17 +844,33 @@
+   bool allowpassthrough = !CSettings::GetInstance().GetBool(CSettings::SETTING_VIDEOPLAYER_USEDISPLAYASCLOCK);
+   if (m_streaminfo.realtime)
+     allowpassthrough = false;
++  bool bSwitched = false;
+   CDVDAudioCodec *codec = CDVDFactoryCodec::CreateAudioCodec(m_streaminfo, m_processInfo, allowpassthrough, m_processInfo.AllowDTSHDDecode());
+   if (!codec || codec->NeedPassthrough() == m_pAudioCodec->NeedPassthrough()) {
+     // passthrough state has not changed
+     delete codec;
+-    return false;
++    bSwitched = false;
++  } else {
++    delete m_pAudioCodec;
++    m_pAudioCodec = codec;
++    bSwitched = true;
+   }
+ 
+-  delete m_pAudioCodec;
+-  m_pAudioCodec = codec;
+-
+-  return true;
++  if (m_bAudio2)
++  {
++    CDVDAudioCodec *codec2 = CDVDFactoryCodec::CreateAudioCodec(m_streaminfo, m_processInfo, allowpassthrough, m_processInfo.AllowDTSHDDecode(), true);
++    if (codec2 != NULL)
++    {
++      if (!codec2 || codec2->NeedPassthrough() == m_pAudioCodec2->NeedPassthrough()) {
++        // passthrough state has not changed
++        delete codec2;
++      } else {
++        delete m_pAudioCodec2;
++        m_pAudioCodec2 = codec2;
++      }
++    }
++  }
++  return bSwitched;
+ }
+ 
+ std::string CVideoPlayerAudio::GetPlayerInfo()
+diff --git a/xbmc/cores/VideoPlayer/VideoPlayerAudio.h b/xbmc/cores/VideoPlayer/VideoPlayerAudio.h
+index 7f8197a..048d451 100644
+--- a/xbmc/cores/VideoPlayer/VideoPlayerAudio.h
++++ b/xbmc/cores/VideoPlayer/VideoPlayerAudio.h
+@@ -35,6 +35,25 @@ class CVideoPlayer;
+ class CDVDAudioCodec;
+ class CDVDAudioCodec;
+ 
++class CAudio2Frames
++{
++public:
++  CAudio2Frames();
++  ~CAudio2Frames();
++  void Add(DVDAudioFrame af);
++  bool Merge(DVDAudioFrame& af);
++  void Clear();
++
++protected:
++  uint8_t*                  data[16];
++  unsigned int              size[16];
++  unsigned int              capa[16];
++  unsigned int              incr;
++  unsigned int              plns;
++  unsigned int              pcap;
++  std::list<DVDAudioFrame>  afs;
++};
++
+ class CVideoPlayerAudio : public CThread, public IDVDStreamPlayerAudio
+ {
+ public:
+@@ -55,7 +74,7 @@ public:
+   void SendMessage(CDVDMsg* pMsg, int priority = 0)     { m_messageQueue.Put(pMsg, priority); }
+   void FlushMessages()                                  { m_messageQueue.Flush(); }
+ 
+-  void SetDynamicRangeCompression(long drc)             { m_dvdAudio.SetDynamicRangeCompression(drc); }
++  void SetDynamicRangeCompression(long drc)             { m_dvdAudio.SetDynamicRangeCompression(drc); if(m_bAudio2) m_dvdAudio2.SetDynamicRangeCompression(drc); }
+   float GetDynamicRangeAmplification() const            { return 0.0f; }
+ 
+ 
+@@ -78,7 +97,7 @@ protected:
+   virtual void Process();
+ 
+   void UpdatePlayerInfo();
+-  void OpenStream(CDVDStreamInfo &hints, CDVDAudioCodec* codec);
++  void OpenStream(CDVDStreamInfo &hints, CDVDAudioCodec* codec, CDVDAudioCodec* codec2);
+   //! Switch codec if needed. Called when the sample rate gotten from the
+   //! codec changes, in which case we may want to switch passthrough on/off.
+   bool SwitchCodecIfNeeded();
+@@ -89,9 +108,13 @@ protected:
+ 
+   double m_audioClock;
+ 
++  CAudio2Frames m_audio2frames;
++
+   CDVDAudio m_dvdAudio; // audio output device
++  CDVDAudio m_dvdAudio2; // audio output device 2
+   CDVDClock* m_pClock; // dvd master clock
+   CDVDAudioCodec* m_pAudioCodec; // audio codec
++  CDVDAudioCodec* m_pAudioCodec2; // audio codec 2
+   BitstreamStats m_audioStats;
+ 
+   int m_speed;
+@@ -101,7 +124,7 @@ protected:
+   IDVDStreamPlayer::ESyncState m_syncState;
+   XbmcThreads::EndTime m_syncTimer;
+ 
+-  bool OutputPacket(DVDAudioFrame &audioframe);
++  bool OutputPacket(DVDAudioFrame &audioframe, DVDAudioFrame &audioframe2);
+ 
+   //SYNC_DISCON, SYNC_SKIPDUP, SYNC_RESAMPLE
+   int    m_synctype;
+@@ -109,6 +132,7 @@ protected:
+   int    m_prevsynctype; //so we can print to the log
+ 
+   void   SetSyncType(bool passthrough);
++  void   HandleSyncAudio2(DVDAudioFrame &audioframe2);
+ 
+   bool   m_prevskipped;
+   double m_maxspeedadjust;
+@@ -127,5 +151,10 @@ protected:
+ 
+   CCriticalSection m_info_section;
+   SInfo            m_info;
++
++  bool   m_bAudio2;
++  bool   m_bAudio2Skip;
++  bool   m_bAudio2Dumb;
++  double m_audiodiff;
+ };
+ 
+diff --git a/xbmc/cores/paplayer/AudioDecoder.cpp b/xbmc/cores/paplayer/AudioDecoder.cpp
+index a3d0601..7fffabf 100644
+--- a/xbmc/cores/paplayer/AudioDecoder.cpp
++++ b/xbmc/cores/paplayer/AudioDecoder.cpp
+@@ -37,6 +37,9 @@ CAudioDecoder::CAudioDecoder()
+   m_status = STATUS_NO_FILE;
+   m_canPlay = false;
+ 
++  m_bAudio2 = false;
++  m_bCheckAudio2 = false;
++
+   // output buffer (for transferring data from the Pcm Buffer to the rest of the audio chain)
+   memset(&m_outputBuffer, 0, OUTPUT_SAMPLES * sizeof(float));
+   memset(&m_pcmInputBuffer, 0, INPUT_SIZE * sizeof(BYTE));
+@@ -84,6 +87,11 @@ bool CAudioDecoder::Create(const CFileItem &file, int64_t seekOffset)
+ 
+   // create our codec
+   m_codec=CodecFactory::CreateCodecDemux(file, filecache * 1024);
++  if (m_codec)
++  {
++    m_codec->SetAudio2(m_bAudio2);
++    m_codec->SetCheckAudio2(m_bCheckAudio2);
++  }
+ 
+   if (!m_codec || !m_codec->Init(file, filecache * 1024))
+   {
+diff --git a/xbmc/cores/paplayer/AudioDecoder.h b/xbmc/cores/paplayer/AudioDecoder.h
+index 71e3ac6..a2edb72 100644
+--- a/xbmc/cores/paplayer/AudioDecoder.h
++++ b/xbmc/cores/paplayer/AudioDecoder.h
+@@ -76,6 +76,9 @@ public:
+   uint8_t* GetRawData(int &size);
+   ICodec *GetCodec() const { return m_codec; }
+   float GetReplayGain(float &peakVal);
++  void SetAudio2(bool bAudio2){ m_bAudio2 = bAudio2; }
++  void SetCheckAudio2(bool bCheckAudio2){ m_bCheckAudio2 = m_bAudio2 ? false : bCheckAudio2; }
++  bool IsReusableForAudio2(){ return m_codec ? m_codec->IsReusableForAudio2() : false; }
+ 
+ private:
+   // pcm buffer
+@@ -100,4 +103,7 @@ private:
+   ICodec* m_codec;
+ 
+   CCriticalSection m_critSection;
++
++  bool    m_bAudio2;
++  bool    m_bCheckAudio2;
+ };
+diff --git a/xbmc/cores/paplayer/ICodec.h b/xbmc/cores/paplayer/ICodec.h
+index 7c7da32..54525b4 100644
+--- a/xbmc/cores/paplayer/ICodec.h
++++ b/xbmc/cores/paplayer/ICodec.h
+@@ -42,6 +42,9 @@ public:
+     m_bitRate = 0;
+     m_bitsPerSample = 0;
+     m_bitsPerCodedSample = 0;
++    m_bAudio2 = false;
++    m_bCheckAudio2 = false;
++    m_bReusableForAudio2 = true;
+   };
+   virtual ~ICodec() {};
+ 
+@@ -95,5 +98,15 @@ public:
+   MUSIC_INFO::CMusicInfoTag m_tag;
+   XFILE::CFile m_file;
+   AEAudioFormat m_format;
++
++  void SetAudio2(bool bAudio2){ m_bAudio2 = bAudio2; }
++  bool IsAudio2() { return m_bAudio2; }
++  void SetCheckAudio2(bool bCheckAudio2){ m_bCheckAudio2 = m_bAudio2 ? false : bCheckAudio2; }
++  bool IsReusableForAudio2(){ return m_bReusableForAudio2; }
++
++protected:
++  bool m_bAudio2;
++  bool m_bCheckAudio2;
++  bool m_bReusableForAudio2;
+ };
+ 
+diff --git a/xbmc/cores/paplayer/PAPlayer.cpp b/xbmc/cores/paplayer/PAPlayer.cpp
+index 87c43a5..344e17d 100644
+--- a/xbmc/cores/paplayer/PAPlayer.cpp
++++ b/xbmc/cores/paplayer/PAPlayer.cpp
+@@ -77,6 +77,10 @@ PAPlayer::PAPlayer(IPlayerCallback& callback) :
+ {
+   memset(&m_playerGUIData, 0, sizeof(m_playerGUIData));
+   m_processInfo.reset(CProcessInfo::CreateInstance());
++  m_bAudio2 = false;
++  m_iTimeSynced = 0;
++  m_iAudio2Discard = 0;
++  m_iRawFrameSize = 0;
+ }
+ 
+ PAPlayer::~PAPlayer()
+@@ -108,6 +112,11 @@ void PAPlayer::SoftStart(bool wait/* = false */)
+ 
+     si->m_stream->Resume();
+     si->m_stream->FadeVolume(0.0f, 1.0f, FAST_XFADE_TIME);
++    if(m_bAudio2)
++    {
++      si->m_stream2->Resume();
++	  si->m_stream2->FadeVolume(0.0f, 1.0f, FAST_XFADE_TIME);
++    }
+   }
+   
+   if (wait)
+@@ -146,6 +155,8 @@ void PAPlayer::SoftStop(bool wait/* = false */, bool close/* = true */)
+     StreamInfo* si = *itt;
+     if (si->m_stream)
+       si->m_stream->FadeVolume(1.0f, 0.0f, FAST_XFADE_TIME);
++    if(m_bAudio2 && si->m_stream2)
++      si->m_stream2->FadeVolume(1.0f, 0.0f, FAST_XFADE_TIME);
+ 
+     if (close)
+     {
+@@ -191,6 +202,8 @@ void PAPlayer::SoftStop(bool wait/* = false */, bool close/* = true */)
+       {
+         StreamInfo* si = *itt;
+         si->m_stream->Pause();
++        if(m_bAudio2)
++          si->m_stream2->Pause();
+       }
+     }
+   }
+@@ -211,8 +224,15 @@ void PAPlayer::CloseAllStreams(bool fade/* = true */)
+         CAEFactory::FreeStream(si->m_stream);
+         si->m_stream = NULL;
+       }
++      if(m_bAudio2 && si->m_stream2)
++      {
++        CAEFactory::FreeStream(si->m_stream2);
++        si->m_stream2 = NULL;
++      }
+ 
+       si->m_decoder.Destroy();
++      if(si->m_usedecoder2)
++        si->m_decoder2.Destroy();
+       delete si;
+     }
+ 
+@@ -226,8 +246,15 @@ void PAPlayer::CloseAllStreams(bool fade/* = true */)
+         CAEFactory::FreeStream(si->m_stream);
+         si->m_stream = NULL;
+       }
++      if(m_bAudio2 && si->m_stream2)
++      {
++        CAEFactory::FreeStream(si->m_stream2);
++        si->m_stream2 = NULL;
++      }
+ 
+       si->m_decoder.Destroy();
++      if(si->m_usedecoder2)
++        si->m_decoder2.Destroy();
+       delete si;
+     }
+     m_currentStream = NULL;
+@@ -344,7 +371,10 @@ bool PAPlayer::QueueNextFileEx(const CFileItem &file, bool fadeIn/* = true */, b
+     m_continueStream = false;
+   }
+ 
++  m_bAudio2 = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_ENABLED) ? true : false;
++
+   StreamInfo *si = new StreamInfo();
++  si->m_decoder.SetCheckAudio2(m_bAudio2);
+   if (!si->m_decoder.Create(file, (file.m_lStartOffset * 1000) / 75))
+   {
+     CLog::Log(LOGWARNING, "PAPlayer::QueueNextFileEx - Failed to create the decoder");
+@@ -357,6 +387,18 @@ bool PAPlayer::QueueNextFileEx(const CFileItem &file, bool fadeIn/* = true */, b
+     return false;
+   }
+ 
++  si->m_usedecoder2 = false;
++  if (m_bAudio2)
++  {
++    si->m_decoder2.SetAudio2(true);
++    if (si->m_decoder.IsReusableForAudio2())
++      CLog::Log(LOGINFO, "PAPlayer::QueueNextFileEx - Reuse for 2nd decoder");
++    else if (si->m_decoder2.Create(file, (file.m_lStartOffset * 1000) / 75))
++      si->m_usedecoder2 = true;
++    else
++      CLog::Log(LOGWARNING, "PAPlayer::QueueNextFileEx - Failed to create 2nd decoder");
++  }
++
+   /* decode until there is data-available */
+   si->m_decoder.Start();
+   while(si->m_decoder.GetDataSize(true) == 0)
+@@ -369,6 +411,8 @@ bool PAPlayer::QueueNextFileEx(const CFileItem &file, bool fadeIn/* = true */, b
+       CLog::Log(LOGINFO, "PAPlayer::QueueNextFileEx - Error reading samples");
+ 
+       si->m_decoder.Destroy();
++      if(si->m_usedecoder2)
++	    si->m_decoder2.Destroy();
+       delete si;
+       // advance playlist
+       if (job)
+@@ -381,6 +425,28 @@ bool PAPlayer::QueueNextFileEx(const CFileItem &file, bool fadeIn/* = true */, b
+     CThread::Sleep(1);
+   }
+ 
++  if (si->m_usedecoder2)
++  {
++    si->m_decoder2.Start();
++	while(si->m_decoder2.GetDataSize(true) == 0)
++	{
++	  int status = si->m_decoder2.GetStatus();
++	  if (status == STATUS_ENDED   ||
++		  status == STATUS_NO_FILE ||
++		  si->m_decoder2.ReadSamples(PACKET_SIZE) == RET_ERROR)
++	  {
++		CLog::Log(LOGINFO, "PAPlayer::QueueNextFileEx 2nd - Error reading samples");
++
++        si->m_decoder2.Destroy();
++        si->m_usedecoder2 = false;
++        break;
++	  }
++	
++	  /* yield our time so that the main PAP thread doesnt stall */
++	  CThread::Sleep(1);
++	}
++  }
++
+   // set m_upcomingCrossfadeMS depending on type of file and user settings
+   UpdateCrossfadeTime(file);
+ 
+@@ -390,12 +456,27 @@ bool PAPlayer::QueueNextFileEx(const CFileItem &file, bool fadeIn/* = true */, b
+   si->m_endOffset = file.m_lEndOffset   * 1000 / 75;
+   si->m_bytesPerSample = CAEUtil::DataFormatToBits(si->m_audioFormat.m_dataFormat) >> 3;
+   si->m_bytesPerFrame = si->m_bytesPerSample * si->m_audioFormat.m_channelLayout.Count();
++  if (si->m_usedecoder2)
++  {
++    si->m_audioFormat2 = si->m_decoder2.GetFormat();
++    si->m_bytesPerSample2 = CAEUtil::DataFormatToBits(si->m_audioFormat2.m_dataFormat) >> 3;
++    si->m_bytesPerFrame2 = si->m_bytesPerSample2 * si->m_audioFormat2.m_channelLayout.Count();
++  }
++  else
++  {
++    si->m_audioFormat2    = si->m_audioFormat;
++    si->m_bytesPerSample2 = si->m_bytesPerSample;
++    si->m_bytesPerFrame2  = si->m_bytesPerFrame;
++  }
+   si->m_started = false;
+   si->m_finishing = false;
+   si->m_framesSent = 0;
++  si->m_framesSent2 = 0;
+   si->m_seekNextAtFrame = 0;
+   si->m_seekFrame = -1;
++  si->m_seekFrame2 = -1;
+   si->m_stream = NULL;
++  si->m_stream2 = NULL;
+   si->m_volume = (fadeIn && m_upcomingCrossfadeMS) ? 0.0f : 1.0f;
+   si->m_fadeOutTriggered = false;
+   si->m_isSlaved = false;
+@@ -418,6 +499,8 @@ bool PAPlayer::QueueNextFileEx(const CFileItem &file, bool fadeIn/* = true */, b
+     m_currentStream->m_waitOnDrain = true;
+     m_currentStream->m_prepareNextAtFrame = 0;
+     si->m_decoder.Destroy();
++    if(si->m_usedecoder2)
++      si->m_decoder2.Destroy();
+     delete si;
+     return false;
+   }
+@@ -432,6 +515,8 @@ bool PAPlayer::QueueNextFileEx(const CFileItem &file, bool fadeIn/* = true */, b
+     CLog::Log(LOGINFO, "PAPlayer::QueueNextFileEx - Error preparing stream");
+     
+     si->m_decoder.Destroy();
++    if(si->m_usedecoder2)
++      si->m_decoder2.Destroy();
+     delete si;
+     // advance playlist
+     if (job)
+@@ -493,12 +578,45 @@ inline bool PAPlayer::PrepareStream(StreamInfo *si)
+   else
+     si->m_stream->SetAmplification(gain);
+ 
++  if(m_bAudio2)
++  {
++    AEAudioFormat format = si->m_audioFormat2;
++    si->m_stream2 = CAEFactory::MakeStream(
++      format,
++      AESTREAM_PAUSED,
++      NULL, true
++    );
++
++    if (!si->m_stream2)
++    {
++      CLog::Log(LOGDEBUG, "PAPlayer::PrepareStream 2nd - Failed to get IAEStream");
++      if (si->m_usedecoder2)
++      {
++        si->m_decoder2.Destroy();
++        si->m_usedecoder2 = false;
++      }
++      m_bAudio2 = false;
++    }
++    else
++    {
++      si->m_stream2->SetVolume    (si->m_volume);
++      float peak = 1.0;
++      float gain = si->m_usedecoder2 ? si->m_decoder2.GetReplayGain(peak) : si->m_decoder.GetReplayGain(peak);
++      if (peak == 1.0)
++        si->m_stream2->SetReplayGain(gain);
++      else
++        si->m_stream2->SetAmplification(gain);
++    }
++  }
++
+   /* if its not the first stream and crossfade is not enabled */
+   if (m_currentStream && m_currentStream != si && !m_upcomingCrossfadeMS)
+   {
+     /* slave the stream for gapless */
+     si->m_isSlaved = true;
+     m_currentStream->m_stream->RegisterSlave(si->m_stream);
++    if(m_bAudio2)
++      m_currentStream->m_stream2->RegisterSlave(si->m_stream2);
+   }
+ 
+   /* fill the stream's buffer */
+@@ -520,6 +638,24 @@ inline bool PAPlayer::PrepareStream(StreamInfo *si)
+     CThread::Sleep(1);
+   }
+ 
++  while(si->m_usedecoder2 && si->m_stream2->IsBuffering())
++  {
++    int status = si->m_decoder2.GetStatus();
++    if (status == STATUS_ENDED   ||
++        status == STATUS_NO_FILE ||
++        si->m_decoder2.ReadSamples(PACKET_SIZE) == RET_ERROR)
++    {
++      CLog::Log(LOGINFO, "PAPlayer::PrepareStream 2nd - Stream Finished");
++      break;
++    }
++
++    if (!QueueData2(si))
++      break;
++
++    /* yield our time so that the main PAP thread doesnt stall */
++    CThread::Sleep(1);
++  }
++
+   CLog::Log(LOGINFO, "PAPlayer::PrepareStream - Ready");
+ 
+   return true;
+@@ -591,6 +727,8 @@ void PAPlayer::Process()
+     }
+ 
+     GetTimeInternal(); //update for GUI
++
++    SyncStreams2();
+   }
+ 
+   if(m_isFinished && !m_bStop)
+@@ -613,10 +751,12 @@ inline void PAPlayer::ProcessStreams(double &freeBufferTime)
+   for(StreamList::iterator itt = m_finishing.begin(); itt != m_finishing.end();)
+   {
+     StreamInfo* si = *itt;
+-    if (si->m_stream->IsDrained())
++    if (si->m_stream->IsDrained() && (!m_bAudio2 || si->m_stream2->IsDrained()))
+     {      
+       itt = m_finishing.erase(itt);
+       CAEFactory::FreeStream(si->m_stream);
++      if(m_bAudio2)
++        CAEFactory::FreeStream(si->m_stream2);
+       delete si;
+       CLog::Log(LOGDEBUG, "PAPlayer::ProcessStreams - Stream Freed");
+     }
+@@ -633,6 +773,7 @@ inline void PAPlayer::ProcessStreams(double &freeBufferTime)
+     if (!m_currentStream && !si->m_started)
+     {
+       m_currentStream = si;
++      CLog::Log(LOGDEBUG, "PAPlayer::ProcessStreams - Stream switched");
+       UpdateGUIData(si); //update for GUI
+     }
+     /* if the stream is finishing */
+@@ -643,6 +784,8 @@ inline void PAPlayer::ProcessStreams(double &freeBufferTime)
+         if (si->m_waitOnDrain)
+         {
+           si->m_stream->Drain(true);
++          if(m_bAudio2)
++            si->m_stream2->Drain(true);
+           si->m_waitOnDrain = false;
+         }
+         si->m_prepareTriggered = true;
+@@ -663,6 +806,8 @@ inline void PAPlayer::ProcessStreams(double &freeBufferTime)
+             if (si->m_waitOnDrain)
+             {
+               si->m_stream->Drain(true);
++              if(m_bAudio2)
++                si->m_stream2->Drain(true);
+               si->m_waitOnDrain = false;
+             }
+             m_callback.OnQueueNextItem();
+@@ -681,6 +826,15 @@ inline void PAPlayer::ProcessStreams(double &freeBufferTime)
+       si->m_stream->UnRegisterAudioCallback();
+       si->m_decoder.Destroy();      
+       si->m_stream->Drain(false);
++      if(m_bAudio2)
++      {
++        if (si->m_usedecoder2)
++        {
++          si->m_decoder2.Destroy();
++          si->m_usedecoder2 = false;
++        }
++        si->m_stream2->Drain(false);
++      }
+       m_finishing.push_back(si);
+       return;
+     }
+@@ -709,6 +863,8 @@ inline void PAPlayer::ProcessStreams(double &freeBufferTime)
+         if (m_upcomingCrossfadeMS)
+         {
+           si->m_stream->FadeVolume(1.0f, 0.0f, m_upcomingCrossfadeMS);
++          if(m_bAudio2)
++            si->m_stream2->FadeVolume(1.0f, 0.0f, m_upcomingCrossfadeMS);
+           si->m_fadeOutTriggered = true;
+         }
+         m_currentStream = NULL;
+@@ -732,6 +888,12 @@ inline bool PAPlayer::ProcessStream(StreamInfo *si, double &freeBufferTime)
+     if (!si->m_isSlaved)
+       si->m_stream->Resume();
+     si->m_stream->FadeVolume(0.0f, 1.0f, m_upcomingCrossfadeMS);
++    if(m_bAudio2)
++    {
++      if (!si->m_isSlaved)
++        si->m_stream2->Resume();
++      si->m_stream2->FadeVolume(0.0f, 1.0f, m_upcomingCrossfadeMS);
++    }
+     m_callback.OnPlayBackStarted();
+   }
+ 
+@@ -749,7 +911,9 @@ inline bool PAPlayer::ProcessStream(StreamInfo *si, double &freeBufferTime)
+     {
+       time = (int64_t)((float)si->m_seekFrame / (float)si->m_audioFormat.m_sampleRate * 1000.0f);
+       si->m_framesSent = (int)(si->m_seekFrame - ((float)si->m_startOffset * (float)si->m_audioFormat.m_sampleRate) / 1000.0f);
++      si->m_framesSent2 = (int)(si->m_seekFrame2 - ((float)si->m_startOffset * (float)si->m_audioFormat2.m_sampleRate) / 1000.0f);
+       si->m_seekFrame  = -1;
++      si->m_seekFrame2  = -1;
+       m_playerGUIData.m_time = time; //update for GUI
+       si->m_seekNextAtFrame = 0;
+     }
+@@ -757,6 +921,7 @@ inline bool PAPlayer::ProcessStream(StreamInfo *si, double &freeBufferTime)
+     else
+     {
+       si->m_framesSent      += si->m_audioFormat.m_sampleRate * (m_playbackSpeed  - 1);
++      si->m_framesSent2     += si->m_audioFormat2.m_sampleRate * (m_playbackSpeed  - 1);
+       si->m_seekNextAtFrame  = si->m_framesSent + si->m_audioFormat.m_sampleRate / 2;
+       time = (int64_t)(((float)si->m_framesSent / (float)si->m_audioFormat.m_sampleRate * 1000.0f) + (float)si->m_startOffset);
+     }
+@@ -766,11 +931,14 @@ inline bool PAPlayer::ProcessStream(StreamInfo *si, double &freeBufferTime)
+     {
+       time = si->m_startOffset;
+       si->m_framesSent      = 0;
++      si->m_framesSent2     = 0;
+       si->m_seekNextAtFrame = 0;
+       SetSpeed(1);
+     }
+ 
+     si->m_decoder.Seek(time);
++    if(si->m_usedecoder2)
++      si->m_decoder2.Seek(time);
+   }
+ 
+   int status = si->m_decoder.GetStatus();
+@@ -820,6 +988,12 @@ inline bool PAPlayer::ProcessStream(StreamInfo *si, double &freeBufferTime)
+   if (!QueueData(si))
+     return false;
+ 
++  if (si->m_usedecoder2)
++  {
++    si->m_decoder2.ReadSamples(PACKET_SIZE);
++    QueueData2(si);
++  }
++
+   /* update free buffer time if we are running */
+   if (si->m_started)
+   {
+@@ -835,6 +1009,21 @@ inline bool PAPlayer::ProcessStream(StreamInfo *si, double &freeBufferTime)
+ 
+       freeBufferTime = std::max(freeBufferTime , free_space);
+     }
++    if (m_bAudio2)
++    {
++      if (si->m_stream2->IsBuffering())
++        freeBufferTime = 1.0;
++      else
++      {
++        double free_space;
++        if (si->m_audioFormat2.m_dataFormat != AE_FMT_RAW)
++          free_space = (double)(si->m_stream2->GetSpace() / si->m_bytesPerSample2) / si->m_audioFormat2.m_sampleRate;
++        else
++          free_space = (double) si->m_stream2->GetSpace() * si->m_audioFormat2.m_streamInfo.GetDuration() / 1000;
++
++        freeBufferTime = std::max(freeBufferTime , free_space);
++      }
++    }
+   }
+ 
+   return true;
+@@ -842,7 +1031,10 @@ inline bool PAPlayer::ProcessStream(StreamInfo *si, double &freeBufferTime)
+ 
+ bool PAPlayer::QueueData(StreamInfo *si)
+ {
++  bool bAudio2 = m_bAudio2 && !si->m_usedecoder2 && si->m_stream2;
+   unsigned int space = si->m_stream->GetSpace();
++  if (bAudio2)
++    space = std::min(space, si->m_stream2->GetSpace());
+ 
+   if (si->m_audioFormat.m_dataFormat != AE_FMT_RAW)
+   {
+@@ -863,9 +1055,31 @@ bool PAPlayer::QueueData(StreamInfo *si)
+     unsigned int frames = samples/si->m_audioFormat.m_channelLayout.Count();
+     unsigned int added = si->m_stream->AddData(&data, 0, frames, 0);
+     si->m_framesSent += added;
++
++    if (bAudio2)
++    {
++      if(samples > m_iAudio2Discard)
++      {
++        m_iAudio2Discard = 0;
++        samples -= m_iAudio2Discard;
++      }
++      else
++      {
++        m_iAudio2Discard -= samples;
++        samples = samples - (samples * si->m_bytesPerSample / si->m_bytesPerFrame * si->m_bytesPerFrame / si->m_bytesPerSample);
++      }
++      if(samples)
++      {
++        frames = samples/si->m_audioFormat.m_channelLayout.Count();
++        added = si->m_stream2->AddData(&data, 0, frames, 0);
++      }
++      si->m_framesSent2 = si->m_framesSent;
++    }
+   }
+   else
+   {
++    m_iRawFrameSize = 0;
++
+     if (!space)
+       return true;
+ 
+@@ -880,6 +1094,16 @@ bool PAPlayer::QueueData(StreamInfo *si)
+         return false;
+       }
+       si->m_framesSent += si->m_audioFormat.m_streamInfo.GetDuration() / 1000 * si->m_audioFormat.m_streamInfo.m_sampleRate;
++
++      if (bAudio2)
++      {
++        m_iRawFrameSize = size;
++        if (m_iAudio2Discard)
++          m_iAudio2Discard--;
++        else
++          added = si->m_stream2->AddData(&data, 0, size, 0);
++        si->m_framesSent2 = si->m_framesSent;
++      }
+     }
+   }
+ 
+@@ -889,6 +1113,157 @@ bool PAPlayer::QueueData(StreamInfo *si)
+   return true;
+ }
+ 
++bool PAPlayer::QueueData2(StreamInfo *si)
++{
++  if (!si->m_usedecoder2)
++    return false;
++
++  unsigned int space   = si->m_stream2->GetSpace();
++
++  if (si->m_audioFormat2.m_dataFormat != AE_FMT_RAW)
++  {
++    unsigned int samples = std::min(si->m_decoder2.GetDataSize(false), space / si->m_bytesPerSample2);
++    if (!samples)
++      return true;
++
++    // we want complete frames
++    samples -= samples % si->m_audioFormat2.m_channelLayout.Count();
++
++    uint8_t* data = (uint8_t*)si->m_decoder2.GetData(samples);
++    if (!data)
++    {
++      CLog::Log(LOGERROR, "PAPlayer::QueueData 2nd - Failed to get data from the decoder");
++      return false;
++    }
++
++	if(samples > m_iAudio2Discard)
++    {
++      si->m_framesSent2 += m_iAudio2Discard/si->m_audioFormat2.m_channelLayout.Count();
++      m_iAudio2Discard = 0;
++      samples -= m_iAudio2Discard;
++    }
++    else
++    {
++      si->m_framesSent2 += samples/si->m_audioFormat2.m_channelLayout.Count();
++      m_iAudio2Discard -= samples;
++      samples = samples - (samples * si->m_bytesPerSample2 / si->m_bytesPerFrame2 * si->m_bytesPerFrame2 / si->m_bytesPerSample2);
++    }
++    if(samples)
++    {
++      unsigned int frames = samples/si->m_audioFormat2.m_channelLayout.Count();
++      unsigned int added = si->m_stream2->AddData(&data, 0, frames, 0);
++      si->m_framesSent2 += added;
++    }
++  }
++  else
++  {
++    m_iRawFrameSize = 0;
++	  
++    if (!space)
++      return true;
++
++    int size;
++    uint8_t *data = si->m_decoder2.GetRawData(size);
++    if (data && size)
++    {
++      m_iRawFrameSize = size;
++      if (m_iAudio2Discard)
++        m_iAudio2Discard--;
++      else
++      {
++        int added = si->m_stream2->AddData(&data, 0, size, 0);
++        if (added != size)
++        {
++          CLog::Log(LOGERROR, "PAPlayer::QueueData 2nd - unknown error");
++          return false;
++        }
++      }
++      si->m_framesSent2 += si->m_audioFormat2.m_streamInfo.GetDuration() / 1000 * si->m_audioFormat2.m_streamInfo.m_sampleRate;
++    }
++  }
++
++  return true;
++}
++
++inline void PAPlayer::SyncStreams2()
++{
++  if(!m_bAudio2)
++    return;
++
++  if(CAEFactory::IsDumb() || CAEFactory::IsDumb(true))
++    return;
++
++  if(!m_currentStream || !m_currentStream->m_stream || !m_currentStream->m_stream2)
++    return;
++
++  if(m_currentStream->m_usedecoder2)
++    return;
++
++  if(m_playbackSpeed != 1)
++    return;
++
++  int iTimeSynced = (int)((double)clock()/CLOCKS_PER_SEC*1000);
++  if(iTimeSynced - m_iTimeSynced < 50)
++    return;
++  m_iTimeSynced = iTimeSynced;
++
++  double time1 = ((double)m_currentStream->m_framesSent / (double)m_currentStream->m_audioFormat.m_sampleRate);
++  double time2 = ((double)m_currentStream->m_framesSent2 / (double)m_currentStream->m_audioFormat2.m_sampleRate);
++  time1 -= m_currentStream->m_stream->GetDelay();
++  time2 -= m_currentStream->m_stream2->GetDelay();
++  double timediff = time2 - time1;
++
++  m_iAudio2Discard = 0;
++  if (timediff > 0.05)
++  {
++    if (m_currentStream->m_audioFormat2.m_dataFormat != AE_FMT_RAW)
++    {
++      unsigned int padsize = (unsigned int)(timediff * (double)m_currentStream->m_audioFormat2.m_sampleRate) * m_currentStream->m_bytesPerFrame2;
++      if(padsize > m_currentStream->m_stream2->GetSpace())
++        padsize = (m_currentStream->m_stream2->GetSpace() / m_currentStream->m_bytesPerFrame2) * m_currentStream->m_bytesPerFrame2;
++      if(padsize)
++      {
++        uint8_t* padbuf = (uint8_t*)malloc(padsize);
++        if(padbuf)
++        {
++          memset(padbuf, 0, padsize);
++          m_currentStream->m_stream2->AddData(&padbuf, 0, padsize/m_currentStream->m_bytesPerFrame2, 0);
++          free(padbuf);
++        }
++      }
++    }
++    else
++    {
++      unsigned int padfrms = (unsigned int)(timediff * 1000.0 / m_currentStream->m_audioFormat2.m_streamInfo.GetDuration());
++      if(padfrms > m_currentStream->m_stream2->GetSpace())
++        padfrms = m_currentStream->m_stream2->GetSpace();
++	  unsigned int padsize = padfrms * m_iRawFrameSize;
++      if(padsize)
++      {
++        uint8_t* padbuf = (uint8_t*)malloc(padsize);
++        if(padbuf)
++        {
++          memset(padbuf, 0, padsize);
++          m_currentStream->m_stream2->AddData(&padbuf, 0, padsize, 0);
++          free(padbuf);
++        }
++      }
++    }
++  }
++  else if(timediff < -0.05)
++  {
++    if (m_currentStream->m_audioFormat2.m_dataFormat != AE_FMT_RAW)
++    {
++      unsigned int discardsize = (unsigned int)(-timediff * (double)m_currentStream->m_audioFormat2.m_sampleRate) * m_currentStream->m_bytesPerFrame2;
++      m_iAudio2Discard = discardsize / m_currentStream->m_bytesPerSample2;
++    }
++    else
++    {
++      m_iAudio2Discard = (unsigned int)(-timediff * 1000.0 / m_currentStream->m_audioFormat2.m_streamInfo.GetDuration());
++    }
++  }
++}
++
+ void PAPlayer::OnExit()
+ {
+ 
+@@ -1105,6 +1480,7 @@ void PAPlayer::SeekTime(int64_t iTime /*=0*/)
+     SetSpeed(1);
+ 
+   m_currentStream->m_seekFrame = (int)((float)m_currentStream->m_audioFormat.m_sampleRate * ((float)iTime + (float)m_currentStream->m_startOffset) / 1000.0f);
++  m_currentStream->m_seekFrame2 = (int)((float)m_currentStream->m_audioFormat2.m_sampleRate * ((float)iTime + (float)m_currentStream->m_startOffset) / 1000.0f);
+   m_callback.OnPlayBackSeek((int)iTime, seekOffset);
+ }
+ 
+diff --git a/xbmc/cores/paplayer/PAPlayer.h b/xbmc/cores/paplayer/PAPlayer.h
+index e108b1e..bbba932 100644
+--- a/xbmc/cores/paplayer/PAPlayer.h
++++ b/xbmc/cores/paplayer/PAPlayer.h
+@@ -105,10 +105,16 @@ private:
+     AEAudioFormat m_audioFormat;
+     unsigned int m_bytesPerSample;       /* number of bytes per audio sample */
+     unsigned int m_bytesPerFrame;        /* number of bytes per audio frame */
++    bool          m_usedecoder2;
++    CAudioDecoder m_decoder2;            /* the stream decoder */
++    AEAudioFormat m_audioFormat2;
++    unsigned int  m_bytesPerSample2;     /* number of bytes per audio sample */
++    unsigned int  m_bytesPerFrame2;      /* number of bytes per audio frame */
+ 
+     bool m_started;                      /* if playback of this stream has been started */
+     bool m_finishing;                    /* if this stream is finishing */
+     int m_framesSent;                    /* number of frames sent to the stream */
++    int m_framesSent2;                   /* number of frames sent to the stream */
+     int m_prepareNextAtFrame;            /* when to prepare the next stream */
+     bool m_prepareTriggered;             /* if the next stream has been prepared */
+     int m_playNextAtFrame;               /* when to start playing the next stream */
+@@ -116,8 +122,10 @@ private:
+     bool m_fadeOutTriggered;             /* if the stream has been told to fade out */
+     int m_seekNextAtFrame;               /* the FF/RR sample to seek at */
+     int m_seekFrame;                     /* the exact position to seek too, -1 for none */
++    int m_seekFrame2;                    /* the exact position to seek too, -1 for none */
+ 
+     IAEStream* m_stream;                 /* the playback stream */
++    IAEStream* m_stream2;                /* the playback stream */
+     float m_volume;                      /* the initial volume level to set the stream to on creation */
+ 
+     bool m_isSlaved;                     /* true if the stream has been slaved to another */
+@@ -147,6 +155,10 @@ private:
+   bool                m_continueStream;
+   int64_t             m_newForcedPlayerTime;
+   int64_t             m_newForcedTotalTime;
++  bool                m_bAudio2;
++  int                 m_iTimeSynced;
++  unsigned int        m_iAudio2Discard;
++  unsigned int        m_iRawFrameSize;
+   std::unique_ptr<CProcessInfo> m_processInfo;
+ 
+   bool QueueNextFileEx(const CFileItem &file, bool fadeIn = true, bool job = false);
+@@ -157,6 +169,8 @@ private:
+   bool PrepareStream(StreamInfo *si);
+   bool ProcessStream(StreamInfo *si, double &freeBufferTime);
+   bool QueueData(StreamInfo *si);
++  bool QueueData2(StreamInfo *si);
++  void SyncStreams2();
+   int64_t GetTotalTime64();
+   void UpdateCrossfadeTime(const CFileItem& file);
+   void UpdateStreamInfoPlayNextAtFrame(StreamInfo *si, unsigned int crossFadingTime);
+diff --git a/xbmc/cores/paplayer/VideoPlayerCodec.cpp b/xbmc/cores/paplayer/VideoPlayerCodec.cpp
+index 32add6c..3ce301b 100644
+--- a/xbmc/cores/paplayer/VideoPlayerCodec.cpp
++++ b/xbmc/cores/paplayer/VideoPlayerCodec.cpp
+@@ -167,7 +167,19 @@ bool VideoPlayerCodec::Init(const CFileItem &file, unsigned int filecache)
+ 
+   CDVDStreamInfo hint(*pStream, true);
+ 
+-  m_pAudioCodec = CDVDFactoryCodec::CreateAudioCodec(hint, *m_processInfo.get());
++  m_pAudioCodec = CDVDFactoryCodec::CreateAudioCodec(hint, *m_processInfo.get(), true, true, m_bAudio2);
++  if (m_bCheckAudio2)
++  {
++    CDVDAudioCodec* pAudioCodec2 = CDVDFactoryCodec::CreateAudioCodec(hint, *m_processInfo.get(), true, true, true);
++    if (!m_pAudioCodec)
++      m_pAudioCodec = pAudioCodec2;
++    else if (pAudioCodec2)
++    {
++      if (pAudioCodec2->NeedPassthrough() != m_pAudioCodec->NeedPassthrough())
++        m_bReusableForAudio2 = false;
++      delete pAudioCodec2;
++    }
++  }
+   if (!m_pAudioCodec)
+   {
+     CLog::Log(LOGERROR, "%s: Could not create audio codec", __FUNCTION__);
+diff --git a/xbmc/guilib/GUIAudioManager.cpp b/xbmc/guilib/GUIAudioManager.cpp
+index 379ff04..d6d6474 100644
+--- a/xbmc/guilib/GUIAudioManager.cpp
++++ b/xbmc/guilib/GUIAudioManager.cpp
+@@ -37,6 +37,7 @@ CGUIAudioManager g_audioManager;
+ CGUIAudioManager::CGUIAudioManager()
+ {
+   m_bEnabled = false;
++  m_bAudio2 = false;
+ }
+ 
+ CGUIAudioManager::~CGUIAudioManager()
+@@ -90,12 +91,16 @@ void CGUIAudioManager::Stop()
+   {
+     if (it->second.initSound  ) it->second.initSound  ->Stop();
+     if (it->second.deInitSound) it->second.deInitSound->Stop();
++    if (it->second.initSound2  ) it->second.initSound2  ->Stop();
++    if (it->second.deInitSound2) it->second.deInitSound2->Stop();
+   }
+ 
+   for (pythonSoundsMap::iterator it = m_pythonSounds.begin(); it != m_pythonSounds.end(); ++it)
+   {
+-    IAESound* sound = it->second;
++    IAESound* sound = it->second.sound;
+     sound->Stop();
++    sound = it->second.sound2;
++    if (sound) sound->Stop();
+   }
+ }
+ 
+@@ -112,8 +117,10 @@ void CGUIAudioManager::PlayActionSound(const CAction& action)
+   if (it == m_actionSoundMap.end())
+     return;
+ 
+-  if (it->second)
+-    it->second->Play();
++  if (it->second.sound)
++    it->second.sound->Play();
++  if (m_bAudio2 && it->second.sound2)
++    it->second.sound2->Play();
+ }
+ 
+ // \brief Play a sound associated with a window and its event
+@@ -132,13 +139,16 @@ void CGUIAudioManager::PlayWindowSound(int id, WINDOW_SOUND event)
+ 
+   CWindowSounds sounds=it->second;
+   IAESound *sound = NULL;
++  IAESound *sound2 = NULL;
+   switch (event)
+   {
+   case SOUND_INIT:
+     sound = sounds.initSound;
++    sound2 = sounds.initSound2;
+     break;
+   case SOUND_DEINIT:
+     sound = sounds.deInitSound;
++    sound2 = sounds.deInitSound2;
+     break;
+   }
+ 
+@@ -146,6 +156,9 @@ void CGUIAudioManager::PlayWindowSound(int id, WINDOW_SOUND event)
+     return;
+ 
+   sound->Play();
++
++  if (m_bAudio2 && sound2)
++    sound2->Play();
+ }
+ 
+ // \brief Play a sound given by filename
+@@ -161,25 +174,31 @@ void CGUIAudioManager::PlayPythonSound(const std::string& strFileName, bool useC
+   pythonSoundsMap::iterator itsb=m_pythonSounds.find(strFileName);
+   if (itsb != m_pythonSounds.end())
+   {
+-    IAESound* sound = itsb->second;
++    IAESound* sound = itsb->second.sound;
+     if (useCached)
+     {
+       sound->Play();
++      sound = itsb->second.sound2;
++      if (m_bAudio2 && sound) sound->Play();
+       return;
+     }
+     else
+     {
+       FreeSoundAllUsage(sound);
++      sound = itsb->second.sound2;
++      if (m_bAudio2 && sound) FreeSoundAllUsage(sound);
+       m_pythonSounds.erase(itsb);
+     }
+   }
+ 
+-  IAESound *sound = LoadSound(strFileName);
+-  if (!sound)
++  CAPSounds aps = LoadSound(strFileName);
++  if (!aps.sound)
+     return;
+ 
+-  m_pythonSounds.insert(std::pair<const std::string, IAESound*>(strFileName, sound));
+-  sound->Play();
++  m_pythonSounds.insert(std::pair<const std::string, CAPSounds>(strFileName, aps));
++  aps.sound->Play();
++  if (m_bAudio2 && aps.sound2)
++    aps.sound2->Play();
+ }
+ 
+ void CGUIAudioManager::UnLoad()
+@@ -200,7 +219,7 @@ void CGUIAudioManager::UnLoad()
+     pythonSoundsMap::iterator it = m_pythonSounds.begin();
+     while (it != m_pythonSounds.end())
+     {
+-      IAESound* sound = it->second;
++      IAESound* sound = it->second.sound;
+       FreeSound(sound);
+       m_pythonSounds.erase(it++);
+     }
+@@ -211,7 +230,7 @@ void CGUIAudioManager::UnLoad()
+     actionSoundMap::iterator it = m_actionSoundMap.begin();
+     while (it != m_actionSoundMap.end())
+     {
+-      IAESound* sound = it->second;
++      IAESound* sound = it->second.sound;
+       FreeSound(sound);
+       m_actionSoundMap.erase(it++);
+     }
+@@ -241,6 +260,7 @@ bool CGUIAudioManager::Load()
+ {
+   CSingleLock lock(m_cs);
+   UnLoad();
++  CheckAudio2();
+ 
+   m_strMediaDir = GetSoundSkinPath();
+   if (m_strMediaDir.empty())
+@@ -292,9 +312,9 @@ bool CGUIAudioManager::Load()
+       if (id > 0 && !strFile.empty())
+       {
+         std::string filename = URIUtils::AddFileToFolder(m_strMediaDir, strFile);
+-        IAESound *sound = LoadSound(filename);
+-        if (sound)
+-          m_actionSoundMap.insert(std::pair<int, IAESound *>(id, sound));
++        CAPSounds aps = LoadSound(filename);
++        if (aps.sound)
++          m_actionSoundMap.insert(std::pair<int, CAPSounds>(id, aps));
+       }
+ 
+       pAction = pAction->NextSibling();
+@@ -319,8 +339,13 @@ bool CGUIAudioManager::Load()
+       }
+ 
+       CWindowSounds sounds;
+-      sounds.initSound   = LoadWindowSound(pWindow, "activate"  );
+-      sounds.deInitSound = LoadWindowSound(pWindow, "deactivate");
++	  CAPSounds aps;
++	  aps = LoadWindowSound(pWindow, "activate"  );
++	  sounds.initSound   = aps.sound;
++	  sounds.initSound2   = aps.sound2;
++	  aps = LoadWindowSound(pWindow, "deactivate"  );
++      sounds.deInitSound = aps.sound;
++      sounds.deInitSound2 = aps.sound2;
+ 
+       if (id > 0)
+         m_windowSoundMap.insert(std::pair<int, CWindowSounds>(id, sounds));
+@@ -332,26 +357,34 @@ bool CGUIAudioManager::Load()
+   return true;
+ }
+ 
+-IAESound* CGUIAudioManager::LoadSound(const std::string &filename)
++CGUIAudioManager::CAPSounds CGUIAudioManager::LoadSound(const std::string &filename)
+ {
+   CSingleLock lock(m_cs);
++  CAPSounds aps;
++  aps.sound = aps.sound2 = NULL;
+   soundCache::iterator it = m_soundCache.find(filename);
+   if (it != m_soundCache.end())
+   {
+     ++it->second.usage;
+-    return it->second.sound;
++	aps.sound = it->second.sound;
++	aps.sound2 = it->second.sound2;
++    return aps;
+   }
+ 
+   IAESound *sound = CAEFactory::MakeSound(filename);
+   if (!sound)
+-    return NULL;
++    return aps;
++  IAESound *sound2 = CAEFactory::MakeSound(filename,true);
+ 
+   CSoundInfo info;
+   info.usage = 1;
+   info.sound = sound;
++  info.sound2 = sound2;
+   m_soundCache[filename] = info;
+ 
+-  return info.sound;
++  aps.sound = info.sound;
++  aps.sound2 = info.sound2;
++  return aps;
+ }
+ 
+ void CGUIAudioManager::FreeSound(IAESound *sound)
+@@ -361,6 +394,7 @@ void CGUIAudioManager::FreeSound(IAESound *sound)
+     if (it->second.sound == sound) {
+       if (--it->second.usage == 0) {     
+         CAEFactory::FreeSound(sound);
++        if(it->second.sound2) CAEFactory::FreeSound(it->second.sound2);
+         m_soundCache.erase(it);
+       }
+       return;
+@@ -374,6 +408,7 @@ void CGUIAudioManager::FreeSoundAllUsage(IAESound *sound)
+   for(soundCache::iterator it = m_soundCache.begin(); it != m_soundCache.end(); ++it) {
+     if (it->second.sound == sound) {   
+       CAEFactory::FreeSound(sound);
++      if(it->second.sound2) CAEFactory::FreeSound(it->second.sound2);
+       m_soundCache.erase(it);
+       return;
+     }
+@@ -381,16 +416,19 @@ void CGUIAudioManager::FreeSoundAllUsage(IAESound *sound)
+ }
+ 
+ // \brief Load a window node of the config file (sounds.xml)
+-IAESound* CGUIAudioManager::LoadWindowSound(TiXmlNode* pWindowNode, const std::string& strIdentifier)
++CGUIAudioManager::CAPSounds CGUIAudioManager::LoadWindowSound(TiXmlNode* pWindowNode, const std::string& strIdentifier)
+ {
++  CAPSounds aps;
++  aps.sound = aps.sound2 = NULL;
++
+   if (!pWindowNode)
+-    return NULL;
++    return aps;
+ 
+   TiXmlNode* pFileNode = pWindowNode->FirstChild(strIdentifier);
+   if (pFileNode && pFileNode->FirstChild())
+     return LoadSound(URIUtils::AddFileToFolder(m_strMediaDir, pFileNode->FirstChild()->Value()));
+ 
+-  return NULL;
++  return aps;
+ }
+ 
+ // \brief Enable/Disable nav sounds
+@@ -413,8 +451,10 @@ void CGUIAudioManager::SetVolume(float level)
+     actionSoundMap::iterator it = m_actionSoundMap.begin();
+     while (it!=m_actionSoundMap.end())
+     {
+-      if (it->second)
+-        it->second->SetVolume(level);
++      if (it->second.sound)
++        it->second.sound->SetVolume(level);
++      if (it->second.sound2)
++        it->second.sound2->SetVolume(level);
+       ++it;
+     }
+   }
+@@ -423,16 +463,25 @@ void CGUIAudioManager::SetVolume(float level)
+   {
+     if (it->second.initSound  ) it->second.initSound  ->SetVolume(level);
+     if (it->second.deInitSound) it->second.deInitSound->SetVolume(level);
++    if (it->second.initSound2  ) it->second.initSound2  ->SetVolume(level);
++    if (it->second.deInitSound2) it->second.deInitSound2->SetVolume(level);
+   }
+ 
+   {
+     pythonSoundsMap::iterator it = m_pythonSounds.begin();
+     while (it != m_pythonSounds.end())
+     {
+-      if (it->second)
+-        it->second->SetVolume(level);
++      if (it->second.sound)
++        it->second.sound->SetVolume(level);
++      if (it->second.sound2)
++        it->second.sound2->SetVolume(level);
+ 
+       ++it;
+     }
+   }
+ }
++
++void CGUIAudioManager::CheckAudio2()
++{
++  m_bAudio2 = CSettings::GetInstance().GetBool(CSettings::SETTING_AUDIOOUTPUT2_ENABLED);
++}
+diff --git a/xbmc/guilib/GUIAudioManager.h b/xbmc/guilib/GUIAudioManager.h
+index d0ddcfb..261c09b 100644
+--- a/xbmc/guilib/GUIAudioManager.h
++++ b/xbmc/guilib/GUIAudioManager.h
+@@ -41,6 +41,15 @@ class CGUIAudioManager : public ISettingCallback
+   public:
+     IAESound *initSound;
+     IAESound *deInitSound;
++    IAESound *initSound2;
++    IAESound *deInitSound2;
++  };
++
++  class CAPSounds
++  {
++  public:
++    IAESound *sound;      
++    IAESound *sound2;
+   };
+ 
+   class CSoundInfo
+@@ -48,6 +57,7 @@ class CGUIAudioManager : public ISettingCallback
+   public:
+     int usage;
+     IAESound *sound;      
++    IAESound *sound2;
+   };
+ 
+ public:
+@@ -68,14 +78,15 @@ public:
+   void PlayWindowSound(int id, WINDOW_SOUND event);
+   void PlayPythonSound(const std::string& strFileName, bool useCached = true);
+ 
++  void CheckAudio2();
+   void Enable(bool bEnable);
+   void SetVolume(float level);
+   void Stop();
+ private:
+   typedef std::map<const std::string, CSoundInfo> soundCache;
+-  typedef std::map<int, IAESound*              > actionSoundMap;
++  typedef std::map<int, CAPSounds              > actionSoundMap;
+   typedef std::map<int, CWindowSounds          > windowSoundMap;
+-  typedef std::map<const std::string, IAESound* > pythonSoundsMap;
++  typedef std::map<const std::string, CAPSounds > pythonSoundsMap;
+ 
+   soundCache          m_soundCache;
+   actionSoundMap      m_actionSoundMap;
+@@ -84,13 +95,14 @@ private:
+ 
+   std::string          m_strMediaDir;
+   bool                m_bEnabled;
++  bool                m_bAudio2;
+ 
+   CCriticalSection    m_cs;
+ 
+-  IAESound* LoadSound(const std::string &filename);
++  CAPSounds LoadSound(const std::string &filename);
+   void      FreeSound(IAESound *sound);
+   void      FreeSoundAllUsage(IAESound *sound);
+-  IAESound* LoadWindowSound(TiXmlNode* pWindowNode, const std::string& strIdentifier);
++  CAPSounds LoadWindowSound(TiXmlNode* pWindowNode, const std::string& strIdentifier);
+ };
+ 
+ extern CGUIAudioManager g_audioManager;
+diff --git a/xbmc/settings/SettingConditions.cpp b/xbmc/settings/SettingConditions.cpp
+index 6b1f2b6..ad70ac3 100644
+--- a/xbmc/settings/SettingConditions.cpp
++++ b/xbmc/settings/SettingConditions.cpp
+@@ -364,6 +364,7 @@ void CSettingConditions::Initialize()
+   m_complexConditions.insert(std::pair<std::string, SettingConditionCheck>("profilehasvideoslocked",        ProfileHasVideosLocked));
+   m_complexConditions.insert(std::pair<std::string, SettingConditionCheck>("profilelockmode",               ProfileLockMode));
+   m_complexConditions.insert(std::pair<std::string, SettingConditionCheck>("aesettingvisible",              CAEFactory::IsSettingVisible));
++  m_complexConditions.insert(std::pair<std::string, SettingConditionCheck>("aesettingvisible2",             CAEFactory::IsSettingVisible));
+   m_complexConditions.insert(std::pair<std::string, SettingConditionCheck>("codecoptionvisible",            CDVDVideoCodec::IsSettingVisible));
+   m_complexConditions.insert(std::pair<std::string, SettingConditionCheck>("gt",                            GreaterThan));
+   m_complexConditions.insert(std::pair<std::string, SettingConditionCheck>("gte",                           GreaterThanOrEqual));
+diff --git a/xbmc/settings/Settings.cpp b/xbmc/settings/Settings.cpp
+index 6e13ba6..6c3fbd7 100644
+--- a/xbmc/settings/Settings.cpp
++++ b/xbmc/settings/Settings.cpp
+@@ -371,6 +371,30 @@ const std::string CSettings::SETTING_AUDIOOUTPUT_DTSPASSTHROUGH = "audiooutput.d
+ const std::string CSettings::SETTING_AUDIOOUTPUT_TRUEHDPASSTHROUGH = "audiooutput.truehdpassthrough";
+ const std::string CSettings::SETTING_AUDIOOUTPUT_DTSHDPASSTHROUGH = "audiooutput.dtshdpassthrough";
+ const std::string CSettings::SETTING_AUDIOOUTPUT_VOLUMESTEPS = "audiooutput.volumesteps";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_ENABLED = "audiooutput2.enabled";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE = "audiooutput2.audiodevice";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_CHANNELS = "audiooutput2.channels";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_CONFIG = "audiooutput2.config";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_SAMPLERATE = "audiooutput2.samplerate";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_STEREOUPMIX = "audiooutput2.stereoupmix";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_MAINTAINORIGINALVOLUME = "audiooutput2.maintainoriginalvolume";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_PROCESSQUALITY = "audiooutput2.processquality";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_ATEMPOTHRESHOLD = "audiooutput2.atempothreshold";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_STREAMSILENCE = "audiooutput2.streamsilence";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_STREAMNOISE = "audiooutput2.streamnoise";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_DSPADDONSENABLED = "audiooutput2.dspaddonsenabled";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_DSPSETTINGS = "audiooutput2.dspsettings";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_DSPRESETDB = "audiooutput2.dspresetdb";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_GUISOUNDMODE = "audiooutput2.guisoundmode";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGH = "audiooutput2.passthrough";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE = "audiooutput2.passthroughdevice";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_AC3PASSTHROUGH = "audiooutput2.ac3passthrough";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_AC3TRANSCODE = "audiooutput2.ac3transcode";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_EAC3PASSTHROUGH = "audiooutput2.eac3passthrough";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_DTSPASSTHROUGH = "audiooutput2.dtspassthrough";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_TRUEHDPASSTHROUGH = "audiooutput2.truehdpassthrough";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_DTSHDPASSTHROUGH = "audiooutput2.dtshdpassthrough";
++const std::string CSettings::SETTING_AUDIOOUTPUT2_VOLUMESTEPS = "audiooutput2.volumesteps";
+ const std::string CSettings::SETTING_INPUT_PERIPHERALS = "input.peripherals";
+ const std::string CSettings::SETTING_INPUT_ENABLEMOUSE = "input.enablemouse";
+ const std::string CSettings::SETTING_INPUT_ASKNEWCONTROLLERS = "input.asknewcontrollers";
+@@ -562,9 +586,11 @@ void CSettings::Uninitialize()
+   m_settingsManager->UnregisterSettingOptionsFiller("audiocdactions");
+   m_settingsManager->UnregisterSettingOptionsFiller("audiocdencoders");
+   m_settingsManager->UnregisterSettingOptionsFiller("aequalitylevels");
++  m_settingsManager->UnregisterSettingOptionsFiller("aequalitylevels2");
+   m_settingsManager->UnregisterSettingOptionsFiller("audiodevices");
+   m_settingsManager->UnregisterSettingOptionsFiller("audiodevicespassthrough");
+   m_settingsManager->UnregisterSettingOptionsFiller("audiostreamsilence");
++  m_settingsManager->UnregisterSettingOptionsFiller("audiostreamsilence2");
+   m_settingsManager->UnregisterSettingOptionsFiller("charsets");
+   m_settingsManager->UnregisterSettingOptionsFiller("epgguideviews");
+   m_settingsManager->UnregisterSettingOptionsFiller("fontheights");
+@@ -911,6 +937,8 @@ void CSettings::InitializeDefaults()
+ #if !defined(TARGET_WINDOWS)
+   ((CSettingString*)m_settingsManager->GetSetting(CSettings::SETTING_AUDIOOUTPUT_AUDIODEVICE))->SetDefault(CAEFactory::GetDefaultDevice(false));
+   ((CSettingString*)m_settingsManager->GetSetting(CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGHDEVICE))->SetDefault(CAEFactory::GetDefaultDevice(true));
++  ((CSettingString*)m_settingsManager->GetSetting(CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE))->SetDefault(CAEFactory::GetDefaultDevice(false,true));
++  ((CSettingString*)m_settingsManager->GetSetting(CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE))->SetDefault(CAEFactory::GetDefaultDevice(true,true));
+ #endif
+ 
+   if (g_application.IsStandAlone())
+@@ -924,9 +952,11 @@ void CSettings::InitializeOptionFillers()
+   m_settingsManager->RegisterSettingOptionsFiller("audiocdactions", MEDIA_DETECT::CAutorun::SettingOptionAudioCdActionsFiller);
+ #endif
+   m_settingsManager->RegisterSettingOptionsFiller("aequalitylevels", CAEFactory::SettingOptionsAudioQualityLevelsFiller);
++  m_settingsManager->RegisterSettingOptionsFiller("aequalitylevels2", CAEFactory::SettingOptionsAudioQualityLevelsFiller);
+   m_settingsManager->RegisterSettingOptionsFiller("audiodevices", CAEFactory::SettingOptionsAudioDevicesFiller);
+   m_settingsManager->RegisterSettingOptionsFiller("audiodevicespassthrough", CAEFactory::SettingOptionsAudioDevicesPassthroughFiller);
+   m_settingsManager->RegisterSettingOptionsFiller("audiostreamsilence", CAEFactory::SettingOptionsAudioStreamsilenceFiller);
++  m_settingsManager->RegisterSettingOptionsFiller("audiostreamsilence2", CAEFactory::SettingOptionsAudioStreamsilenceFiller);
+   m_settingsManager->RegisterSettingOptionsFiller("charsets", CCharsetConverter::SettingOptionsCharsetsFiller);
+   m_settingsManager->RegisterSettingOptionsFiller("fonts", GUIFontManager::SettingOptionsFontsFiller);
+   m_settingsManager->RegisterSettingOptionsFiller("languagenames", CLangInfo::SettingOptionsLanguageNamesFiller);
+@@ -1082,6 +1112,27 @@ void CSettings::InitializeISettingCallbacks()
+   settingSet.insert(CSettings::SETTING_AUDIOOUTPUT_STREAMNOISE);
+   settingSet.insert(CSettings::SETTING_AUDIOOUTPUT_MAINTAINORIGINALVOLUME);
+   settingSet.insert(CSettings::SETTING_AUDIOOUTPUT_DSPADDONSENABLED);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_ENABLED);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_CONFIG);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_SAMPLERATE);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGH);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_CHANNELS);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_PROCESSQUALITY);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_ATEMPOTHRESHOLD);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_GUISOUNDMODE);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_STEREOUPMIX);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_AC3PASSTHROUGH);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_AC3TRANSCODE);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_EAC3PASSTHROUGH);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_DTSPASSTHROUGH);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_TRUEHDPASSTHROUGH);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_DTSHDPASSTHROUGH);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_AUDIODEVICE);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_STREAMSILENCE);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_STREAMNOISE);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_MAINTAINORIGINALVOLUME);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_DSPADDONSENABLED);
+   settingSet.insert(CSettings::SETTING_LOOKANDFEEL_SKIN);
+   settingSet.insert(CSettings::SETTING_LOOKANDFEEL_SKINSETTINGS);
+   settingSet.insert(CSettings::SETTING_LOOKANDFEEL_FONT);
+@@ -1102,6 +1153,7 @@ void CSettings::InitializeISettingCallbacks()
+   settingSet.insert(CSettings::SETTING_VIDEOPLAYER_USEMEDIACODEC);
+   settingSet.insert(CSettings::SETTING_VIDEOPLAYER_USEMEDIACODECSURFACE);
+   settingSet.insert(CSettings::SETTING_AUDIOOUTPUT_VOLUMESTEPS);
++  settingSet.insert(CSettings::SETTING_AUDIOOUTPUT2_VOLUMESTEPS);
+   settingSet.insert(CSettings::SETTING_SOURCE_VIDEOS);
+   settingSet.insert(CSettings::SETTING_SOURCE_MUSIC);
+   settingSet.insert(CSettings::SETTING_SOURCE_PICTURES);
+diff --git a/xbmc/settings/Settings.h b/xbmc/settings/Settings.h
+index 269a3a7..195e774 100644
+--- a/xbmc/settings/Settings.h
++++ b/xbmc/settings/Settings.h
+@@ -328,6 +328,30 @@ public:
+   static const std::string SETTING_AUDIOOUTPUT_TRUEHDPASSTHROUGH;
+   static const std::string SETTING_AUDIOOUTPUT_DTSHDPASSTHROUGH;
+   static const std::string SETTING_AUDIOOUTPUT_VOLUMESTEPS;
++  static const std::string SETTING_AUDIOOUTPUT2_ENABLED;
++  static const std::string SETTING_AUDIOOUTPUT2_AUDIODEVICE;
++  static const std::string SETTING_AUDIOOUTPUT2_CHANNELS;
++  static const std::string SETTING_AUDIOOUTPUT2_CONFIG;
++  static const std::string SETTING_AUDIOOUTPUT2_SAMPLERATE;
++  static const std::string SETTING_AUDIOOUTPUT2_STEREOUPMIX;
++  static const std::string SETTING_AUDIOOUTPUT2_MAINTAINORIGINALVOLUME;
++  static const std::string SETTING_AUDIOOUTPUT2_PROCESSQUALITY;
++  static const std::string SETTING_AUDIOOUTPUT2_ATEMPOTHRESHOLD;
++  static const std::string SETTING_AUDIOOUTPUT2_STREAMSILENCE;
++  static const std::string SETTING_AUDIOOUTPUT2_STREAMNOISE;
++  static const std::string SETTING_AUDIOOUTPUT2_DSPADDONSENABLED;
++  static const std::string SETTING_AUDIOOUTPUT2_DSPSETTINGS;
++  static const std::string SETTING_AUDIOOUTPUT2_DSPRESETDB;
++  static const std::string SETTING_AUDIOOUTPUT2_GUISOUNDMODE;
++  static const std::string SETTING_AUDIOOUTPUT2_PASSTHROUGH;
++  static const std::string SETTING_AUDIOOUTPUT2_PASSTHROUGHDEVICE;
++  static const std::string SETTING_AUDIOOUTPUT2_AC3PASSTHROUGH;
++  static const std::string SETTING_AUDIOOUTPUT2_AC3TRANSCODE;
++  static const std::string SETTING_AUDIOOUTPUT2_EAC3PASSTHROUGH;
++  static const std::string SETTING_AUDIOOUTPUT2_DTSPASSTHROUGH;
++  static const std::string SETTING_AUDIOOUTPUT2_TRUEHDPASSTHROUGH;
++  static const std::string SETTING_AUDIOOUTPUT2_DTSHDPASSTHROUGH;
++  static const std::string SETTING_AUDIOOUTPUT2_VOLUMESTEPS;
+   static const std::string SETTING_INPUT_PERIPHERALS;
+   static const std::string SETTING_INPUT_ENABLEMOUSE;
+   static const std::string SETTING_INPUT_ASKNEWCONTROLLERS;

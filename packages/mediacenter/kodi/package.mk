@@ -17,7 +17,7 @@
 ################################################################################
 
 PKG_NAME="kodi"
-PKG_VERSION="02af98c"
+PKG_VERSION="a9a7a20"
 PKG_ARCH="any"
 PKG_LICENSE="GPL"
 PKG_SITE="http://www.kodi.tv"
@@ -30,6 +30,7 @@ PKG_LONGDESC="Kodi Media Center (which was formerly named Xbox Media Center or X
 
 PKG_IS_ADDON="no"
 PKG_AUTORECONF="no"
+
 
 case $PROJECT in
   S805|S812|S905|S912)

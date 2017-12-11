@@ -1,5 +1,13 @@
 # VERSION: set full version, use "devel" for development version
-  LIBREELEC_VERSION="8.2-kodi_17.4"
+case $DISTRO in
+  LibreELEC)
+    LIBREELEC_VERSION="8.2RC-kodi_17.6-final"
+      ;;
+  Lakka)
+    LIBREELEC_VERSION="Lakka-2.1"
+      ;;
+esac
+
 
 # OS_VERSION: OS Version
   OS_VERSION="8.2"

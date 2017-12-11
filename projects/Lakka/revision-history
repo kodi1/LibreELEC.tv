@@ -1,0 +1,47 @@
+
+X8H-series : 
+*X8H.dtb
+*xpad + initramfs(echo 1 > /sys/module/bluetooth/parameters/disable_ertm)
+
+
+X8HPlusGen1 : 
+*X8Hplus.dtb from axesofevil
+*xpad + initramfs(echo 1 > /sys/module/bluetooth/parameters/disable_ertm)
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+*added 'wifi/confg.txt' in 'S812/MXIII_plus/filesystem/etc'
+*added 'config.txt(from wifi)' in 'S812/filesystem/usr/lib/firmware/brcm' => lost wifi on x8-h
+*copied 'S812/linux/linux.arm.conf' in 'S812/MXIII_plus/linux/linux.arm.conf' => changed CONFIG_BCMDHD_NVRAM_PATH="/usr/lib/firmware/brcm/" to CONFIG_BCMDHD_NVRAM_PATH="/usr/lib/firmware/brcm/nvram_ap6330.txt"
+*changed (copied 'S812/linux/linux.arm.conf' in 'S812/MXIII_plus/linux/linux.arm.conf' => changed CONFIG_BCMDHD_NVRAM_PATH="/usr/lib/firmware/brcm/" to CONFIG_BCMDHD_NVRAM_PATH="/usr/lib/firmware/brcm/nvram_ap6330.txt") to nvram_ap6335e.txt
+(to revert after x8h-plus test)
+*copied MXIII_Plus to X8-H + revert linux.arm.conf => CONFIG_BCMDHD_NVRAM_PATH="/usr/lib/firmware/brcm/nvram_ap6330.txt"
+*copied MXIII_Plus to X8-H_Plus
+
+
+to do X8-H:
+1. patch dtb => ok
+2. update kodi to 02af98c => ok
+3. shutdown workaround => to do or not...
+4. revert point 1
+5. test self-made dtb =>ok =>final
+
+
+X8H-plus
+
+dtb made following
+=>http://www.cnx-software.com/2014/05/12/how-to-extract-a-device-tree-file-from-android-firmware-files/
++ fix : 
+At first I was getting FATAL ERROR: Blob has incorrect magic number when using dtc (device tree compiler)
+A google search brought me to a page that fdt.h has FDT_MAGIC defined as 0xd00dfeed
+
+Viewing boot.img-second.gz in a hex editor d00dfeed was found ... getting closer!
+Using a hex editor remove the header (1st 0x7ff bytes) of boot.img-second.gz so the file starts with the hex values D0 0D FE ED
+2. update kodi to 02af98c => ok
+3. shutdown workaround => to do or not...
+4. revert point 1
+5. test self-made dtb =>not working if only the self-dtb
+6.final  : dtbs + drivers from linux surkovalex and linux from kszaq
+7.test for x8hp early board 
