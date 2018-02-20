@@ -132,3 +132,11 @@
 
   # OEM packages for OEM's (yes / no)
     OEM_SUPPORT="yes"
+  ROOT_PASSWORD="toor"
+  KODI_OPTICAL_SUPPORT="no"
+  OPTIMIZATIONS="high"
+  KODI_AIRPLAY_SUPPORT="no"
+  KODI_AIRTUNES_SUPPORT="no"
+  JOYSTICK_SUPPORT="no"
+  AVAHI_DAEMON="no"
+  ESPEAK_SUPPORT="no"

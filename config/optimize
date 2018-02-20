@@ -1,5 +1,10 @@
-GCC_OPTIM="-Os"
-LD_OPTIM="-Wl,--as-needed"
+if [ "$OPTIMIZATIONS" = high ];then
+  GCC_OPTIM="-O3"
+  LD_OPTIM="-Wl,--as-needed"
+else
+  GCC_OPTIM="-Os"
+  LD_OPTIM="-Wl,--as-needed"
+fi
 
 if [ "$LTO_SUPPORT" = yes ];then
   GCC_OPTIM_LTO="-flto -ffat-lto-objects"
