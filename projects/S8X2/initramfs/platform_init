@@ -1,0 +1,95 @@
+#!/bin/sh
+
+hdmimode="720p"
+
+# Parse command line arguments
+for arg in $(cat /proc/cmdline); do
+  case $arg in
+    hdmitx=*)
+      hdmitx="${arg#*=}"
+      ;;
+    hdmimode=*)
+      hdmimode="${arg#*=}"
+      ;;
+    BOOT_IMAGE=*)
+      BOOT_IMAGE="${arg#*=}"
+      ;;
+    boot=*)
+      boot="${arg#*=}"
+      ;;
+    disk=*)
+      disk="${arg#*=}"
+      ;;
+  esac
+done
+
+echo "$hdmimode" > /sys/class/display/mode
+
+# Add information where to run LibreELEC from
+if [ -z "$BOOT_IMAGE" -o -z "$boot" -o -z "$disk" ]; then
+  cmdline=$(cat /proc/cmdline)
+  cmdline="$cmdline BOOT_IMAGE=/dev/boot boot=/dev/system disk=/dev/data"
+  echo "$cmdline" > /proc/cmdline
+fi
+
+# Force enable CEC if configuration parameter not present or empty
+if [ -z "$hdmitx" ]; then
+  echo 0xf > /sys/class/amhdmitx/amhdmitx0/cec_config
+fi
+
+# Enable first framebuffer
+echo 0 > /sys/class/graphics/fb0/blank
+
+# Disable second framebuffer
+echo 1 > /sys/class/graphics/fb1/blank
+
+# Disable framebuffer scaling
+echo 0 > /sys/class/graphics/fb0/free_scale
+
+# set initial video state
+echo 1 > /sys/class/video/disable_video
+
+# Set default resolution parameters
+bpp=32;
+xRes=1280;
+yRes=720;
+
+
+case "$hdmimode" in
+  480*)
+    xRes=720; yRes=480;
+    ;;
+  576*)
+    xRes=720; yRes=576;
+    ;;
+  1080*)
+    xRes=1920; yRes=1080;
+    ;;
+  4k2k*hz|2160p*)
+    xRes=3840; yRes=2160;
+    ;;
+  4k2ksmpte|smpte24hz)
+    xRes=4096; yRes=2160;
+    ;;
+esac
+
+vXRes=$xRes;
+vYRes=$(( $yRes * 2 ));
+
+
+# Set framebuffer geometry to match the resolution
+fbset -fb /dev/fb0 -g $xRes $yRes $vXRes $vYRes $bpp;
+
+# Include deinterlacer into default VFM map
+echo rm default > /sys/class/vfm/map
+echo add default decoder ppmgr deinterlace amvideo > /sys/class/vfm/map
+
+
+for part in /sys/block/*/queue/add_random; do
+  echo 0 > "$part"
+done
+
+echo 1 > /sys/devices/system/cpu/cpufreq/ondemand/io_is_busy
+
+# Stabilize xbox one bluetooth controller
+echo 1 > /sys/module/bluetooth/parameters/disable_ertm
