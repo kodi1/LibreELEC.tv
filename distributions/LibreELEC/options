@@ -193,7 +193,7 @@
   DISTRO_SRC="http://sources.libreelec.tv/$LIBREELEC_VERSION"
 
 # Addon Server Url
-  ADDON_SERVER_URL="https://github.com/datrh/addons/raw/master"
+  ADDON_SERVER_URL="https://github.com/datrh/addons/tree/master/9.0/Amlogic/arm"
 
 # set the addon dirs
   ADDON_PATH="$ADDON_VERSION/${DEVICE:-$PROJECT}/$TARGET_ARCH"
