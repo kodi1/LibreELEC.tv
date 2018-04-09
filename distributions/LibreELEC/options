@@ -196,9 +196,10 @@
   ADDON_SERVER_URL="https://github.com/datrh/addons/tree/master/9.0/Amlogic/arm"
 
 # set the addon dirs
-  ADDON_PATH="$ADDON_VERSION/${DEVICE:-$PROJECT}/$TARGET_ARCH"
-  ADDON_URL="$ADDON_SERVER_URL/$ADDON_PATH"
-
+  # ADDON_PATH="$ADDON_VERSION/${DEVICE:-$PROJECT}/$TARGET_ARCH"
+  # ADDON_URL="$ADDON_SERVER_URL/$ADDON_PATH"
+  ADDON_URL="$ADDON_SERVER_URL"
+  
 # Default size of system partition, in MB, eg. 512
   SYSTEM_SIZE=512
 # Default system partition offset, in sectors, eg. 2048
